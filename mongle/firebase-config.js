@@ -5,7 +5,9 @@
 // 값이 null이면 로그인·클라우드 저장 메뉴가 숨겨지고 게임은 이 기기에만 저장된다.
 window.MONGLE_FIREBASE = {
   apiKey: "AIzaSyCFHV5tvy8aWiDNsZcDqRxzzMxGba-gwBo",
-  authDomain: "mongle-pet-1a2b3.firebaseapp.com",
+  // 실제 사이트에서는 로그인 창을 같은 주소에서 연다(netlify.toml의 /__/auth 프록시).
+  // 그 밖의 주소(미리보기, 로컬)에서는 Firebase 기본 주소를 쓴다.
+  authDomain: location.hostname === "mongle-pet.netlify.app" ? "mongle-pet.netlify.app" : "mongle-pet-1a2b3.firebaseapp.com",
   projectId: "mongle-pet-1a2b3",
   storageBucket: "mongle-pet-1a2b3.firebasestorage.app",
   messagingSenderId: "186520537962",
