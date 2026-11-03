@@ -4,6 +4,7 @@ import { initializeApp } from "./vendor/firebase/firebase-app.js";
 import {
   getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult,
   createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, signOut, connectAuthEmulator,
+  signInWithCustomToken, updateProfile,
 } from "./vendor/firebase/firebase-auth.js";
 import {
   getFirestore, doc, getDoc, setDoc, serverTimestamp, connectFirestoreEmulator,
@@ -63,6 +64,12 @@ export function createCloud(config, { emulator = null } = {}) {
       }
     },
     emailSignIn: (email, pw) => signInWithEmailAndPassword(auth, email, pw),
+    // 카카오: 서버 함수가 발급한 Firebase 토큰으로 로그인하고 닉네임을 표시 이름으로 저장
+    async kakaoFinish(token, nickname) {
+      const cred = await signInWithCustomToken(auth, token);
+      if (nickname && cred.user.displayName !== nickname) await updateProfile(cred.user, { displayName: nickname });
+      return cred.user;
+    },
     emailSignUp: (email, pw) => createUserWithEmailAndPassword(auth, email, pw),
     resetPassword: (email) => sendPasswordResetEmail(auth, email),
     logout: () => signOut(auth),

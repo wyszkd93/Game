@@ -12,7 +12,7 @@
 - 표정(웃음·슬픔·아픔·졸림)과 밥 먹기·씻기·싫다고 고개 젓기 같은 반응 애니메이션
 - 키운 방식에 따라 종류별 5가지 어른 모습으로 진화(예: 반짝냥·반짝멍·반짝곰), 종류별 도감에 수집(전체 30종)
 - 배부름·행복·청결·체력·건강 수치, 똥·병·돌봄 실수·죽음
-- 진행 상황은 브라우저 localStorage에 저장되고, 창을 닫은 시간도 최대 4시간까지 반영
+- 진행 상황은 브라우저 localStorage에 저장되고, 앱을 닫아 둔 시간은 최대 3일까지 '안심 모드'로 반영
 - 설정에서 시간 ×20으로 바꾸면 성장을 빨리 볼 수 있음
 
 ## 휴대폰 앱으로 설치하기 (PWA)
@@ -83,3 +83,37 @@ npx firebase-tools emulators:start --only auth,firestore --project demo-mongle
 ### 포함된 라이브러리
 
 - `mongle/vendor/firebase/`: Firebase JS SDK 12.19.0 (Apache-2.0, `NOTICE.txt` 참고). CDN 대신 직접 넣어 오프라인 캐시가 되도록 함
+
+## 난이도와 '안심 모드'
+
+- 켜 둔 상태 기준으로 배고픔은 약 6시간, 행복은 약 7.5시간, 체력은 약 6시간, 청결은 약 10시간에 걸쳐 줄어듭니다.
+- **앱을 닫아 두었거나, 켜 둔 채 10분 동안 조작이 없으면 '안심 모드'**: 줄어드는 속도는 절반이고, 배고픔·행복·청결은 20 아래로 내려가지 않으며, 병에 걸리거나 죽지 않고, 소원도 멈춥니다. 최대 3일까지 반영됩니다.
+- 성장: 알 20초 → 아기 10분 → 어린이 1시간 → 청소년 3시간 → 어른. 이미 자란 펫은 단계가 뒤로 가지 않습니다.
+
+## 카카오 로그인
+
+카카오 인증 → Netlify 서버 함수(`netlify/functions/kakao-auth.mjs`)가 카카오에 사용자를 확인하고 Firebase 로그인 토큰을 발급 → 게임이 그 토큰으로 Firebase에 로그인합니다. 사용자 id는 `kakao:카카오회원번호`이고, 클라우드 저장은 Google·이메일 로그인과 똑같이 동작합니다. 외부 패키지 없이 Node 기본 모듈만 씁니다.
+
+### 1. 카카오 디벨로퍼스 (https://developers.kakao.com)
+
+1. **내 애플리케이션 → 애플리케이션 추가하기** (앱 이름 `몽글이`)
+2. **앱 설정 → 플랫폼 → Web 플랫폼 등록**: 사이트 도메인 `https://mongle-pet.netlify.app`
+3. **제품 설정 → 카카오 로그인 → 활성화 설정 ON**, **Redirect URI**에 `https://mongle-pet.netlify.app/` (끝의 `/` 포함)
+4. **카카오 로그인 → 동의항목**: `닉네임` 사용(필수 또는 선택)
+5. **앱 설정 → 앱 키**의 **REST API 키**를 `mongle/firebase-config.js`의 `window.MONGLE_KAKAO = { restKey: "..." }`에 넣기
+6. (선택) **카카오 로그인 → 보안 → Client Secret**을 '사용함'으로 켰다면 그 값을 아래 Netlify 환경 변수 `KAKAO_CLIENT_SECRET`에 넣기
+
+### 2. Firebase 서비스 계정 키
+
+Firebase 콘솔 → **프로젝트 설정 → 서비스 계정 → 새 비공개 키 생성**으로 JSON 파일을 받습니다. **이 파일은 비밀입니다. 리포나 채팅에 올리지 말고** 아래 환경 변수에만 넣으세요.
+
+### 3. Netlify 환경 변수 (Site configuration → Environment variables, Scope: Functions 포함)
+
+| 이름 | 값 |
+|---|---|
+| `KAKAO_REST_KEY` | 카카오 REST API 키 |
+| `KAKAO_CLIENT_SECRET` | (Client Secret을 켠 경우만) |
+| `FIREBASE_CLIENT_EMAIL` | 서비스 계정 JSON의 `client_email` |
+| `FIREBASE_PRIVATE_KEY` | 서비스 계정 JSON의 `private_key` 전체 (`-----BEGIN PRIVATE KEY-----`부터 `-----END PRIVATE KEY-----\n`까지) |
+
+환경 변수를 바꾼 뒤에는 **Deploys → Trigger deploy → Deploy site**로 다시 배포해야 반영됩니다.
