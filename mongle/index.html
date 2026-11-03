@@ -281,6 +281,7 @@ body.picking .tabbar, body.picking .coins { display: none; }
         <div id="acctOut" style="display:grid;gap:10px">
           <p class="help">로그인하면 기록이 클라우드에 저장돼서 다른 기기에서도 이어서 키울 수 있어요.</p>
           <div class="row"><button class="btn primary" id="gLogin">Google로 로그인</button></div>
+          <p class="help" id="inAppHint" hidden>카카오톡 같은 앱 안의 브라우저에서는 Google 로그인이 막혀 있어요. 화면 오른쪽 위 메뉴에서 <b>다른 브라우저로 열기</b>를 누르거나, 아래 이메일로 로그인해 주세요.</p>
           <div class="row"><input id="acctEmail" type="email" placeholder="이메일" autocomplete="email"><input id="acctPw" type="password" placeholder="비밀번호 (6자 이상)" autocomplete="current-password"></div>
           <div class="row"><button class="btn" id="emailIn">이메일로 로그인</button><button class="btn" id="emailUp">가입하기</button><button class="btn" id="pwReset">비밀번호 찾기</button></div>
         </div>
@@ -1311,6 +1312,7 @@ body.picking .tabbar, body.picking .coins { display: none; }
         emuParam ? { emulator: { host: location.hostname, authPort: 9099, firestorePort: 8080 } } : {});
     } catch (e) { cloud = null; return; } // 오프라인 등: 이 기기 저장만 사용
     renderAccount();
+    cloud.onRedirectError((e) => acctMsg("Google 로그인에 실패했어요. " + friendly(e)));
     cloud.onUser(async (u) => {
       cloudUser = u; renderAccount();
       if (u && cloudLoadedFor !== u.uid) { cloudLoadedFor = u.uid; acctMsg(""); await syncOnLogin(); }
@@ -1364,7 +1366,12 @@ body.picking .tabbar, body.picking .coins { display: none; }
   }
   const creds = () => [$("acctEmail").value.trim(), $("acctPw").value];
   const tryAuth = async (fn, okMsg) => { acctMsg("잠시만요…"); try { await fn(); acctMsg(okMsg || ""); } catch (e) { acctMsg(friendly(e)); } };
-  $("gLogin").addEventListener("click", () => tryAuth(() => cloud.google()));
+  const inApp = /KAKAOTALK|NAVER\(inapp|Instagram|FBAN|FBAV|Line\/|DaumApps|everytimeApp|; wv\)/i.test(navigator.userAgent);
+  $("inAppHint").hidden = !inApp;
+  $("gLogin").addEventListener("click", () => {
+    if (inApp) return acctMsg("이 앱 안의 브라우저에서는 Google 로그인이 막혀 있어요. 다른 브라우저로 열거나 이메일로 로그인해 주세요.");
+    tryAuth(() => cloud.google());
+  });
   $("emailIn").addEventListener("click", () => { const [e, pw] = creds(); tryAuth(() => cloud.emailSignIn(e, pw)); });
   $("emailUp").addEventListener("click", () => { const [e, pw] = creds(); tryAuth(() => cloud.emailSignUp(e, pw), "가입했어요!"); });
   $("pwReset").addEventListener("click", () => {
