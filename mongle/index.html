@@ -1413,7 +1413,7 @@ body.picking .tabbar, body.picking .coins { display: none; }
         method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ code }),
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data.token) throw new Error(data.error || "서버에 연결하지 못했어요.");
+      if (!res.ok || !data.token) throw new Error((data.error || "서버에 연결하지 못했어요.") + (data.detail ? ` (${data.detail})` : ""));
       await cloud.kakaoFinish(data.token, data.nickname);
       renderAccount(); toast("카카오로 로그인했어요!");
     } catch (e) {
