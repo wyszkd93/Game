@@ -1,0 +1,6 @@
+Firebase JavaScript SDK 12.19.0 (firebase-app.js, firebase-auth.js, firebase-firestore-lite.js)
+Source: https://www.npmjs.com/package/firebase  /  https://github.com/firebase/firebase-js-sdk
+License: Apache License 2.0 (https://www.apache.org/licenses/LICENSE-2.0)
+Copyright Google LLC.
+Modification: the absolute CDN import of firebase-app.js was rewritten to the relative path ./firebase-app.js
+and source map comments were removed, so the files can be self-hosted and cached offline.

@@ -1,0 +1,19 @@
+rules_version = '2';
+// 몽글이: 로그인한 사용자는 자기 문서(users/{자기 uid})만 읽고 쓸 수 있다.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{uid} {
+      allow read, delete: if request.auth != null && request.auth.uid == uid;
+      allow create, update: if request.auth != null && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['v', 'save', 'dex', 'savedAt', 'name', 'species', 'stage', 'updatedAt'])
+        && request.resource.data.save is string
+        && request.resource.data.save.size() < 200000
+        && request.resource.data.dex is list
+        && request.resource.data.dex.size() <= 200;
+    }
+    // 그 밖의 모든 경로는 막는다
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

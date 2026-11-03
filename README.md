@@ -52,3 +52,34 @@
 - `mongle/icons/`: 앱 아이콘
 - `index.html`: 리포 첫 화면에서 게임으로 이동
 - `mongle/fonts/`: 도트 폰트 Galmuri11 (OFL-1.1, 라이선스 전문은 `mongle/fonts/LICENSE.txt`)
+
+## 로그인 · 클라우드 저장 (Firebase)
+
+설정 탭의 **계정 · 클라우드 저장**에서 Google 또는 이메일로 로그인하면 기록이 Firestore에 저장되고, 다른 기기에서 로그인해도 이어서 키울 수 있습니다. 새 기기에서는 친구 고르기 화면의 **로그인해서 이어 하기**로 불러옵니다. 양쪽 기록이 다르면 어느 쪽을 쓸지 고르고, 도감은 합쳐집니다. `mongle/firebase-config.js`가 비어 있으면 이 메뉴는 숨겨지고 기기 안에만 저장됩니다.
+
+### Firebase 콘솔에서 한 번 설정하기
+
+1. **프로젝트 만들기** (이미 있으면 그 프로젝트 사용)
+2. **Authentication → 시작하기 → 로그인 방법**에서 `Google`과 `이메일/비밀번호` 사용 설정
+3. **Authentication → 설정 → 승인된 도메인**에 Netlify 주소 추가 (예: `mongle-pet.netlify.app`)
+4. **Firestore Database → 데이터베이스 만들기** (프로덕션 모드, 서울 `asia-northeast3` 권장)
+5. **Firestore Database → 규칙**에 리포의 `firestore.rules` 내용을 붙여 넣고 **게시**
+6. **프로젝트 설정 → 일반 → 내 앱 → 웹 앱 추가(`</>`)** 후 나오는 `firebaseConfig` 값을 `mongle/firebase-config.js`에 넣기
+   (apiKey 등은 비밀 값이 아니라 공개돼도 됩니다. 보안은 5번의 규칙과 3번의 승인된 도메인이 담당합니다.)
+
+### 저장 구조
+
+- 컬렉션 `users`, 문서 id = 로그인 사용자 uid, 필드: `save`(게임 기록 JSON 문자열), `dex`, `savedAt`, `name`, `species`, `stage`, `updatedAt`, `v`
+- 열려 있는 동안 2분마다, 앱을 내릴 때, **지금 저장**을 누를 때 저장 (무료 사용량 안에서 쓰도록 횟수 제한)
+
+### 로컬 테스트 (Firebase 에뮬레이터)
+
+```bash
+npx firebase-tools emulators:start --only auth,firestore --project demo-mongle
+```
+
+에뮬레이터를 켠 뒤 `firebase-config.js`에 아무 값(`projectId: "demo-mongle"`)을 넣고 `http://127.0.0.1:<포트>/?emulator=1`로 열면 실제 Firebase 대신 에뮬레이터에 저장됩니다.
+
+### 포함된 라이브러리
+
+- `mongle/vendor/firebase/`: Firebase JS SDK 12.19.0 (Apache-2.0, `NOTICE.txt` 참고). CDN 대신 직접 넣어 오프라인 캐시가 되도록 함
