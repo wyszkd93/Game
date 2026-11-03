@@ -1,210 +1,305 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="아기 고양이 몽글이를 돌보며 키우는 도트 가상 펫 게임">
+<meta name="theme-color" content="#1b2236">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="몽글이">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <title>몽글이 키우기</title>
 <meta name="claude:viewport-fit-sides" content="cover">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=Gowun+Dodum&display=swap">
 <style>
-/* Layout: a pastel handheld shell on the left, gauges / shop / dex on the right; stacks on phones. */
+/* Layout: one-column phone app — top bar, pixel room scene, icon actions, bottom tab bar. Deliberately single dark theme (night-sea navy with mint + peach). */
+@font-face { font-family: "Galmuri11"; src: url("fonts/Galmuri11.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Galmuri11"; src: url("fonts/Galmuri11-Bold.woff2") format("woff2"); font-weight: 700; font-display: swap; }
 :root {
-  --bg: #e9eef0;
-  --fg: #23302f;
-  --muted: #5d6b69;
-  --shell: #f3b6a6;
-  --shell-edge: #d98f7c;
-  --shell-ink: #5a2d24;
-  --lcd: #c4d3a2;
-  --lcd-ink: #2f3a1f;
-  --panel: #ffffff;
-  --line: #d3dcdc;
-  --accent: #2e7c76;
-  --coin: #b9820c;
-  --good: #3a8a4a;
-  --warn: #c68a14;
-  --bad: #c2453a;
-  --font-display: "Do Hyeon", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
-  --font-body: "Gowun Dodum", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --bg: #161c1d; --fg: #e3ebea; --muted: #9aaaa8;
-    --shell: #a8665a; --shell-edge: #7d473e; --shell-ink: #fde7e1;
-    --lcd: #a9b98a; --lcd-ink: #232c16;
-    --panel: #1f2728; --line: #334040; --accent: #6cc3bb; --coin: #e8b84a;
-    --good: #6fc27d; --warn: #e6b04a; --bad: #ec7a6f;
-    color-scheme: dark;
-  }
-}
-:root[data-theme="dark"] {
-  --bg: #161c1d; --fg: #e3ebea; --muted: #9aaaa8;
-  --shell: #a8665a; --shell-edge: #7d473e; --shell-ink: #fde7e1;
-  --lcd: #a9b98a; --lcd-ink: #232c16;
-  --panel: #1f2728; --line: #334040; --accent: #6cc3bb; --coin: #e8b84a;
-  --good: #6fc27d; --warn: #e6b04a; --bad: #ec7a6f;
+  --bg: #1b2236;
+  --panel: #262f4a;
+  --panel-hi: #33405f;
+  --edge: #0d1220;
+  --shadow: #0a0e19;
+  --fg: #eef1f7;
+  --muted: #9aa6c4;
+  --mint: #7fe0c0;
+  --peach: #f6b39b;
+  --gold: #ffd36b;
+  --good: #7fe0c0;
+  --warn: #ffc861;
+  --bad: #ff7b7b;
+  --font: "Galmuri11", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
+html { -webkit-text-size-adjust: 100%; height: 100%; }
 body {
+  margin: 0; min-height: 100%;
   background: var(--bg); color: var(--fg);
-  font-family: var(--font-body); font-size: 15px; line-height: 1.55;
-  padding-left: max(16px, env(safe-area-inset-left, 0px));
-  padding-right: max(16px, env(safe-area-inset-right, 0px));
-  padding-block: 24px 40px;
+  font-family: var(--font); font-size: 14px; line-height: 1.5;
+  overscroll-behavior-y: none; -webkit-tap-highlight-color: transparent;
 }
-.wrap { max-width: 980px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 380px) minmax(0, 1fr); gap: 28px; align-items: start; }
-.left { display: grid; gap: 16px; position: sticky; top: 16px; }
-@media (max-width: 760px) { .wrap { grid-template-columns: minmax(0, 1fr); } .left { position: static; } }
-h1, h2 { font-family: var(--font-display); font-weight: 400; margin: 0; text-wrap: balance; }
-h1 { font-size: 2rem; letter-spacing: .02em; }
-h2 { font-size: 1.2rem; }
-.sub { color: var(--muted); margin: 4px 0 0; }
+button { font: inherit; color: inherit; }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--mint); outline-offset: 2px; }
+.app {
+  max-width: 480px; margin: 0 auto; min-height: 100vh; min-height: 100dvh;
+  padding-left: max(14px, env(safe-area-inset-left, 0px));
+  padding-right: max(14px, env(safe-area-inset-right, 0px));
+  padding-block: max(10px, env(safe-area-inset-top, 0px)) calc(88px + env(safe-area-inset-bottom, 0px));
+  display: grid; gap: 14px; align-content: start;
+}
 
-/* Device shell */
-.device {
-  background: var(--shell); border: 3px solid var(--shell-edge);
-  border-radius: 46% 46% 42% 42% / 38% 38% 30% 30%;
-  padding: 44px 30px 34px; color: var(--shell-ink);
-  box-shadow: inset 0 -10px 0 var(--shell-edge);
-  display: grid; gap: 14px; justify-items: center;
+/* pixel frame: hard border, inner highlight, offset block shadow */
+.frame {
+  background: var(--panel);
+  border: 3px solid var(--edge);
+  box-shadow: inset 0 0 0 2px var(--panel-hi), 4px 4px 0 0 var(--shadow);
 }
-.brand { font-family: var(--font-display); font-size: 1.1rem; letter-spacing: .18em; }
-.screen-frame { background: var(--shell-edge); padding: 10px; border-radius: 14px; width: 100%; max-width: 300px; }
-canvas#lcd {
-  display: block; width: 100%; aspect-ratio: 4 / 3; max-width: 100%;
-  image-rendering: pixelated; background: var(--lcd); border-radius: 6px;
-  cursor: pointer; touch-action: none;
-}
-.tip { font-size: .85rem; opacity: .85; margin-top: -6px; }
-.actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; width: 100%; max-width: 300px; }
-.actions button, .btn {
-  font-family: var(--font-display); font-size: 1.05rem;
-  border: 2px solid var(--shell-ink); background: var(--panel); color: var(--fg);
-  border-radius: 999px; padding: 8px 6px; cursor: pointer; touch-action: manipulation;
-  box-shadow: 0 3px 0 var(--shell-ink); transition: transform .06s, box-shadow .06s;
-  -webkit-user-select: none; user-select: none;
-}
-.actions button:active, .btn:active, .actions button.held { transform: translateY(2px); box-shadow: 0 1px 0 var(--shell-ink); }
-.actions button:disabled, .btn:disabled { opacity: .45; cursor: not-allowed; }
-button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
-.toast { min-height: 1.6em; font-family: var(--font-display); font-size: 1.05rem; text-align: center; font-variant-numeric: tabular-nums; }
 
-/* Panel */
-.panel { display: grid; gap: 22px; min-width: 0; }
-.card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px; display: grid; gap: 12px; min-width: 0; }
-.card-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
-.facts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
-@media (max-width: 460px) { .facts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-.fact .k { font-size: .78rem; color: var(--muted); letter-spacing: .06em; }
-.fact .v { font-family: var(--font-display); font-size: 1.25rem; font-variant-numeric: tabular-nums; }
-.fact .v.coin { color: var(--coin); }
-.bars { display: grid; gap: 10px; }
-.bar { display: grid; grid-template-columns: 4.5em minmax(0, 1fr) 3em; gap: 10px; align-items: center; }
-.bar .track { height: 12px; background: var(--line); border-radius: 999px; overflow: hidden; }
-.bar .fill { height: 100%; width: 50%; background: var(--good); border-radius: 999px; transition: width .4s, background .4s; }
-.bar .num { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
+.topbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-top: 4px; }
+.brand { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
+.brand b { font-size: 1.15rem; letter-spacing: .02em; }
+.brand span { color: var(--muted); font-size: .8rem; white-space: nowrap; }
+.coins { display: flex; align-items: center; gap: 4px; font-weight: 700; color: var(--gold); font-variant-numeric: tabular-nums; }
+.ico { width: 24px; height: 24px; image-rendering: pixelated; flex: none; display: block; }
+.ico.lg { width: 36px; height: 36px; }
+
+/* scene */
+.scene { padding: 8px; display: grid; gap: 8px; position: relative; }
+.hud { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; }
+.stat { display: grid; justify-items: center; gap: 3px; }
+.stat .ico { width: 20px; height: 20px; }
+.meter { width: 100%; height: 6px; background: var(--edge); border: 1px solid var(--edge); }
+.meter i { display: block; height: 100%; width: 50%; background: var(--good); transition: width .4s; }
+.room { position: relative; border: 3px solid var(--edge); }
+canvas#lcd { display: block; width: 100%; aspect-ratio: 4 / 3; max-width: 100%; image-rendering: pixelated; cursor: pointer; touch-action: none; -webkit-touch-callout: none; user-select: none; }
+.nametag {
+  position: absolute; left: 8px; top: 8px; padding: 2px 8px; font-size: .8rem;
+  background: rgba(13, 18, 32, .72); color: var(--fg); border: 2px solid var(--edge);
+}
+.toast {
+  position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%);
+  max-width: calc(100% - 16px); padding: 4px 10px; font-size: .85rem; text-align: center;
+  background: #fffaf0; color: #1a1626; border: 2px solid var(--edge); box-shadow: 2px 2px 0 var(--edge);
+  font-variant-numeric: tabular-nums; pointer-events: none; transition: opacity .2s;
+}
+.toast:empty { opacity: 0; }
+.room.playing .nametag { display: none; }
+.room.playing .toast { bottom: auto; top: 6px; }
+
+/* icon action buttons */
+.actions { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; padding: 8px; }
+@media (max-width: 360px) { .actions { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+.act {
+  display: grid; justify-items: center; gap: 2px; padding: 8px 2px 6px; min-height: 64px;
+  background: var(--panel-hi); border: 2px solid var(--edge); box-shadow: 0 3px 0 var(--edge);
+  cursor: pointer; touch-action: manipulation; user-select: none; -webkit-user-select: none;
+}
+.act .lbl { font-size: .78rem; }
+.act:active, .act.held { transform: translateY(2px); box-shadow: 0 1px 0 var(--edge); }
+.act:disabled { opacity: .4; }
+.act.alert { border-color: var(--warn); animation: pulse 1s steps(2) infinite; }
+@keyframes pulse { 50% { background: #4a3f2a; } }
+.gamekeys { grid-template-columns: 1fr 1fr 1fr; }
+.gamekeys .act { min-height: 64px; font-size: 1.4rem; align-content: center; }
+
+.info { padding: 12px; display: grid; gap: 10px; }
+.facts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.fact { display: grid; gap: 2px; }
+.fact .k { font-size: .72rem; color: var(--muted); }
+.fact .v { font-weight: 700; font-variant-numeric: tabular-nums; }
 .status { display: flex; flex-wrap: wrap; gap: 6px; }
-.pill { font-size: .82rem; padding: 2px 10px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
+.pill { font-size: .75rem; padding: 1px 8px; border: 2px solid var(--panel-hi); color: var(--muted); }
 .pill.warn { border-color: var(--warn); color: var(--warn); }
 .pill.bad { border-color: var(--bad); color: var(--bad); }
 .pill.good { border-color: var(--good); color: var(--good); }
-.pill.wish { border-color: var(--coin); color: var(--coin); }
+.pill.wish { border-color: var(--gold); color: var(--gold); }
 
-.shop { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
-.item { border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; display: grid; gap: 4px; align-content: start; }
-.item .name { font-family: var(--font-display); font-size: 1.05rem; }
-.item .desc { font-size: .85rem; color: var(--muted); min-height: 2.6em; }
-.item .btn { justify-self: start; }
-.price { color: var(--coin); font-variant-numeric: tabular-nums; }
+/* tab pages */
+.page-head { display: flex; align-items: center; gap: 8px; }
+.page-head h1 { font-size: 1.3rem; margin: 0; font-weight: 700; }
+.page-head .sub { margin-left: auto; color: var(--muted); font-size: .8rem; }
+.bars { display: grid; gap: 8px; padding: 12px; }
+.bar { display: grid; grid-template-columns: 24px 3.6em minmax(0, 1fr) 2.4em; gap: 8px; align-items: center; }
+.bar .track { height: 10px; background: var(--edge); }
+.bar .fill { height: 100%; width: 50%; background: var(--good); transition: width .4s; }
+.bar .num { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
 
-.dex { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 8px; }
-@media (max-width: 520px) { .dex { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-.dex-slot { border: 1px dashed var(--line); border-radius: 12px; padding: 8px; display: grid; gap: 4px; justify-items: center; text-align: center; }
-.dex-slot.found { border-style: solid; border-color: var(--accent); }
-.dex-slot canvas { width: 100%; max-width: 96px; aspect-ratio: 4 / 3; image-rendering: pixelated; background: var(--lcd); border-radius: 6px; }
-.dex-slot .nm { font-family: var(--font-display); }
-.dex-slot .hint { font-size: .75rem; color: var(--muted); line-height: 1.35; }
+.shop { display: grid; gap: 10px; }
+.item { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 10px 12px; }
+.item .name { font-weight: 700; }
+.item .desc { font-size: .78rem; color: var(--muted); }
+.btn {
+  font-size: .85rem; padding: 7px 12px; cursor: pointer; white-space: nowrap;
+  background: var(--edge); color: var(--fg); border: 2px solid var(--panel-hi); box-shadow: 0 3px 0 var(--shadow);
+}
+.btn:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--shadow); }
+.btn:disabled { opacity: .4; cursor: not-allowed; }
+.btn.primary { background: var(--mint); color: #10241d; border-color: var(--edge); }
+.btn.danger { color: var(--bad); border-color: var(--bad); }
+.price { color: var(--gold); }
 
-.log { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; max-height: 210px; overflow-y: auto; }
-.log li { display: grid; grid-template-columns: 4.2em minmax(0, 1fr); gap: 8px; font-size: .92rem; }
+.dex { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.dex-slot { padding: 10px; display: grid; gap: 4px; justify-items: center; text-align: center; }
+.dex-slot canvas { width: 100%; max-width: 160px; aspect-ratio: 4 / 3; image-rendering: pixelated; border: 2px solid var(--edge); }
+.dex-slot .nm { font-weight: 700; }
+.dex-slot .hint { font-size: .72rem; color: var(--muted); }
+.dex-slot.found { box-shadow: inset 0 0 0 2px var(--mint), 4px 4px 0 0 var(--shadow); }
+
+.log { list-style: none; margin: 0; padding: 12px; display: grid; gap: 6px; }
+.log li { display: grid; grid-template-columns: 3.6em minmax(0, 1fr); gap: 8px; font-size: .85rem; }
 .log time { color: var(--muted); font-variant-numeric: tabular-nums; }
-.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
-.row label { color: var(--muted); }
-input#petName { font: inherit; padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); min-width: 0; width: 10em; }
-.btn { font-size: .95rem; padding: 6px 14px; box-shadow: 0 2px 0 var(--muted); border-color: var(--muted); }
-.btn.danger { color: var(--bad); border-color: var(--bad); box-shadow: 0 2px 0 var(--bad); }
-.help { color: var(--muted); font-size: .9rem; margin: 0; }
-@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+
+.settings { padding: 12px; display: grid; gap: 12px; }
+.row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.row label { color: var(--muted); min-width: 3em; }
+input#petName { font: inherit; padding: 6px 10px; border: 2px solid var(--edge); background: var(--bg); color: var(--fg); min-width: 0; width: 10em; }
+.help { color: var(--muted); font-size: .8rem; margin: 0; }
+
+/* first-run friend picker */
+.pick-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.pick-card {
+  display: grid; justify-items: center; gap: 4px; padding: 6px 4px 8px; cursor: pointer;
+  background: #fff7ec; color: #3a2b33; border: 3px solid var(--edge); box-shadow: 4px 4px 0 var(--shadow);
+}
+.pick-card canvas { width: 100%; aspect-ratio: 4 / 3; image-rendering: pixelated; }
+.pick-card span { font-size: .85rem; padding: 0 8px; }
+.pick-card[aria-checked="true"] { border-color: var(--mint); box-shadow: 0 0 0 2px var(--edge), 4px 4px 0 2px var(--shadow); }
+.pick-card[aria-checked="true"] span { background: #1a1626; color: #fff; }
+.pick-name { display: flex; align-items: center; gap: 10px; padding: 10px 12px; }
+.pick-name label { color: var(--muted); }
+.pick-name input { flex: 1; min-width: 0; font: inherit; padding: 6px 10px; border: 2px solid var(--edge); background: var(--bg); color: var(--fg); }
+.btn.big { padding: 14px; font-size: 1rem; font-weight: 700; }
+body.picking .tabbar, body.picking .coins { display: none; }
+
+/* bottom tab bar */
+.tabbar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 5;
+  background: var(--edge); border-top: 3px solid var(--panel-hi);
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+  padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px);
+}
+.tabbar .inner { max-width: 480px; margin: 0 auto; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); }
+.tab {
+  display: grid; justify-items: center; gap: 2px; padding: 8px 0 6px; background: none; border: 0; cursor: pointer;
+  color: var(--muted); font-size: .72rem; opacity: .7;
+}
+.tab .ico { width: 30px; height: 30px; padding: 2px; border: 2px solid transparent; }
+.tab[aria-selected="true"] { color: var(--fg); opacity: 1; }
+.tab[aria-selected="true"] .ico { border-color: var(--fg); background: var(--panel); }
+
+/* modal */
+.modal { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; padding: 20px; background: rgba(8, 10, 18, .7); }
+.modal .box { width: min(340px, 100%); padding: 18px; display: grid; gap: 12px; justify-items: center; text-align: center; }
+.modal canvas { width: 160px; aspect-ratio: 4 / 3; image-rendering: pixelated; border: 2px solid var(--edge); }
+.modal h2 { margin: 0; font-size: 1.15rem; }
+.modal p { margin: 0; color: var(--muted); font-size: .85rem; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 </style>
 
-<div class="wrap">
-  <div class="left">
-    <section class="device" aria-label="몽글이 기기">
-      <div class="brand">MONGLE·POCKET</div>
-      <div class="screen-frame"><canvas id="lcd" width="64" height="48" aria-label="몽글이 화면. 누르면 쓰다듬어요"></canvas></div>
-      <div class="tip" id="tip">화면을 누르면 쓰다듬어요</div>
-      <div class="toast" id="toast" role="status" aria-live="polite"></div>
-      <div class="actions" id="actions">
-        <button id="aFeed" data-act="feed">밥</button>
-        <button id="aSnack" data-act="snack">간식</button>
-        <button id="aPlay" data-act="play">별 받기</button>
-        <button id="aClean" data-act="clean">씻기</button>
-        <button id="aSleep" data-act="sleep">재우기</button>
-        <button id="aMed" data-act="med">약</button>
+<div class="app">
+  <header class="topbar">
+    <div class="brand"><b id="title">몽글이</b><span id="today"></span></div>
+    <div class="coins" aria-label="코인"><img class="ico" data-icon="coin" alt=""><span id="fCoins">0</span></div>
+  </header>
+
+  <main>
+    <section class="page" id="page-pick" data-page="pick" hidden style="display:grid;gap:14px">
+      <div class="page-head"><h1>함께할 친구 고르기</h1></div>
+      <p class="help">알에서 어떤 친구가 나올지 골라 주세요. 이름은 나중에 설정에서 바꿀 수 있어요.</p>
+      <div class="pick-grid" id="pickGrid" role="radiogroup" aria-label="친구 종류"></div>
+      <div class="frame pick-name"><label for="pickName">이름</label><input id="pickName" maxlength="8" placeholder="예: 몽글이" autocomplete="off"></div>
+      <button class="btn primary big" id="pickGo">▶ 이 친구랑 시작하기</button>
+    </section>
+
+    <section class="page" id="page-home" data-page="home" style="display:grid;gap:14px">
+      <div class="frame scene">
+        <div class="hud" id="hud"></div>
+        <div class="room">
+          <canvas id="lcd" width="64" height="48" aria-label="몽글이 방. 누르면 쓰다듬어요"></canvas>
+          <div class="nametag" id="nametag">몽글이</div>
+          <div class="toast" id="toast" role="status" aria-live="polite"></div>
+        </div>
       </div>
-      <div class="actions" id="gameKeys" hidden>
-        <button id="gLeft" data-dir="-1">◀</button>
-        <button id="gQuit">그만</button>
-        <button id="gRight" data-dir="1">▶</button>
+      <div class="frame actions" id="actions">
+        <button class="act" id="aFeed" data-act="feed"><img class="ico lg" data-icon="bowl" alt=""><span class="lbl">밥</span></button>
+        <button class="act" id="aSnack" data-act="snack"><img class="ico lg" data-icon="fish" alt=""><span class="lbl">간식</span></button>
+        <button class="act" id="aPlay" data-act="play"><img class="ico lg" data-icon="star" alt=""><span class="lbl">별 받기</span></button>
+        <button class="act" id="aClean" data-act="clean"><img class="ico lg" data-icon="bubble" alt=""><span class="lbl">씻기</span></button>
+        <button class="act" id="aSleep" data-act="sleep"><img class="ico lg" data-icon="moon" alt=""><span class="lbl">재우기</span></button>
+        <button class="act" id="aMed" data-act="med"><img class="ico lg" data-icon="pill" alt=""><span class="lbl">약</span></button>
+      </div>
+      <div class="frame actions gamekeys" id="gameKeys" hidden>
+        <button class="act" id="gLeft" data-dir="-1">◀</button>
+        <button class="act" id="gQuit"><span class="lbl">그만</span></button>
+        <button class="act" id="gRight" data-dir="1">▶</button>
+      </div>
+      <div class="frame info">
+        <div class="facts">
+          <div class="fact"><div class="k">단계</div><div class="v" id="fStage">알</div></div>
+          <div class="fact"><div class="k">나이</div><div class="v" id="fAge">0분</div></div>
+          <div class="fact"><div class="k">몸무게</div><div class="v" id="fWeight">5g</div></div>
+          <div class="fact"><div class="k">별 받기 최고</div><div class="v" id="fBest">0</div></div>
+        </div>
+        <div class="status" id="status"></div>
+        <p class="help" id="tip">방을 누르면 쓰다듬어요.</p>
       </div>
     </section>
-  </div>
 
-  <section class="panel">
-    <header>
-      <h1 id="title">몽글이 키우기</h1>
-      <p class="sub">알에서 깨어난 몽글이를 어른이 될 때까지 돌봐 주세요. 어떻게 키웠는지에 따라 다른 모습으로 자라요.</p>
-    </header>
-
-    <div class="card">
-      <div class="facts">
-        <div class="fact"><div class="k">단계</div><div class="v" id="fStage">알</div></div>
-        <div class="fact"><div class="k">나이</div><div class="v" id="fAge">0분</div></div>
-        <div class="fact"><div class="k">몸무게</div><div class="v" id="fWeight">5g</div></div>
-        <div class="fact"><div class="k">코인</div><div class="v coin" id="fCoins">0</div></div>
-      </div>
-      <div class="bars" id="bars"></div>
-      <div class="status" id="status"></div>
-    </div>
-
-    <div class="card">
-      <div class="card-head"><h2>상점</h2><span class="help">코인은 별 받기와 소원 들어주기로 모아요</span></div>
+    <section class="page" id="page-shop" data-page="shop" hidden style="display:grid;gap:14px">
+      <div class="page-head"><img class="ico" data-icon="shop" alt=""><h1>상점</h1><span class="sub">별 받기와 소원으로 코인을 모아요</span></div>
       <div class="shop" id="shop"></div>
-    </div>
+    </section>
 
-    <div class="card">
-      <div class="card-head"><h2>도감</h2><span class="help" id="dexCount">0 / 5</span></div>
+    <section class="page" id="page-dex" data-page="dex" hidden style="display:grid;gap:14px">
+      <div class="page-head"><img class="ico" data-icon="book" alt=""><h1>도감</h1><span class="sub" id="dexCount">0 / 5</span></div>
       <div class="dex" id="dex"></div>
-    </div>
+    </section>
 
-    <div class="card">
-      <h2>돌봄 일지</h2>
-      <ul class="log" id="log"></ul>
-    </div>
+    <section class="page" id="page-log" data-page="log" hidden style="display:grid;gap:14px">
+      <div class="page-head"><img class="ico" data-icon="note" alt=""><h1>상태와 일지</h1></div>
+      <div class="frame bars" id="bars"></div>
+      <ul class="frame log" id="log"></ul>
+    </section>
 
-    <div class="card">
-      <h2>설정</h2>
-      <div class="row">
-        <label for="petName">이름</label>
-        <input id="petName" maxlength="8" value="몽글이">
-        <button class="btn" id="speedBtn">시간 ×1</button>
-        <button class="btn" id="soundBtn">소리 켬</button>
-        <button class="btn danger" id="resetBtn">처음부터</button>
-        <button class="btn danger" id="resetYes" hidden>정말 새로 시작</button>
-        <button class="btn" id="resetNo" hidden>취소</button>
+    <section class="page" id="page-settings" data-page="settings" hidden style="display:grid;gap:14px">
+      <div class="page-head"><img class="ico" data-icon="gear" alt=""><h1>설정</h1></div>
+      <div class="frame settings">
+        <div class="row"><label for="petName">이름</label><input id="petName" maxlength="8" value="몽글이"></div>
+        <div class="row"><label>시간</label><button class="btn" id="speedBtn">시간 ×1</button><label>소리</label><button class="btn" id="soundBtn">소리 켬</button></div>
+        <div class="row"><label>초기화</label>
+          <button class="btn danger" id="resetBtn">처음부터</button>
+          <button class="btn danger" id="resetYes" hidden>정말 새로 시작</button>
+          <button class="btn" id="resetNo" hidden>취소</button>
+        </div>
+        <p class="help">밥은 배부름, 별 받기는 행복, 씻기는 청결, 재우기는 체력을 채워요. 말풍선이 뜨면 몽글이의 소원이에요. 똥을 오래 두거나 굶기면 병에 걸리고, 아픈 채로 두면 건강이 줄어요. 앱을 닫아도 최대 4시간까지 시간이 흘러요. 시간 ×20이면 성장을 빨리 볼 수 있어요. 처음부터 다시 해도 코인, 꾸미기, 도감은 남아요.</p>
       </div>
-      <p class="help">밥은 배부름, 별 받기는 행복, 씻기는 청결, 재우기는 체력을 채웁니다. 말풍선이 뜨면 몽글이의 소원이에요. 똥을 오래 두거나 굶기면 병에 걸리고, 아픈 채로 두면 건강이 줄어듭니다. 창을 닫아도 최대 4시간까지 시간이 흘러요. 시간 ×20이면 성장을 빨리 볼 수 있어요.</p>
-    </div>
-  </section>
+    </section>
+  </main>
+</div>
+
+<nav class="tabbar" aria-label="메뉴">
+  <div class="inner" role="tablist">
+    <button class="tab" role="tab" data-tab="home" aria-selected="true"><img class="ico" data-icon="house" alt=""><span>돌보기</span></button>
+    <button class="tab" role="tab" data-tab="shop" aria-selected="false"><img class="ico" data-icon="shop" alt=""><span>상점</span></button>
+    <button class="tab" role="tab" data-tab="dex" aria-selected="false"><img class="ico" data-icon="book" alt=""><span>도감</span></button>
+    <button class="tab" role="tab" data-tab="log" aria-selected="false"><img class="ico" data-icon="note" alt=""><span>일지</span></button>
+    <button class="tab" role="tab" data-tab="settings" aria-selected="false"><img class="ico" data-icon="gear" alt=""><span>설정</span></button>
+  </div>
+</nav>
+
+<div class="modal" id="modal" hidden role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+  <div class="frame box">
+    <canvas id="modalCv" width="64" height="48" aria-hidden="true"></canvas>
+    <h2 id="modalTitle"></h2>
+    <p id="modalText"></p>
+    <button class="btn primary" id="modalOk">확인</button>
+  </div>
 </div>
 
 <script>
@@ -219,12 +314,29 @@ input#petName { font: inherit; padding: 6px 10px; border: 1px solid var(--line);
     { id: "adult", name: "어른",   until: Infinity },
   ];
   const FORMS = {
-    sparkle: { name: "반짝냥", hint: "돌봄 실수 없이 늘 행복하게" },
-    playful: { name: "장난냥", hint: "별 받기를 자주 하면" },
-    chubby:  { name: "통통냥", hint: "간식을 너무 좋아하면" },
-    sleepy:  { name: "꾸벅냥", hint: "돌봄 실수가 잦으면" },
-    normal:  { name: "몽냥",   hint: "무난하게 키우면" },
+    sparkle: { prefix: "반짝", hint: "돌봄 실수 없이 늘 행복하게" },
+    playful: { prefix: "장난", hint: "별 받기를 자주 하면" },
+    chubby:  { prefix: "통통", hint: "간식을 너무 좋아하면" },
+    sleepy:  { prefix: "꾸벅", hint: "돌봄 실수가 잦으면" },
+    normal:  { prefix: "몽",   hint: "무난하게 키우면" },
   };
+  // 동물 종류: 귀 모양, 꼬리, 무늬, 색만 다르고 몸 비율과 표정은 같은 엔진으로 그린다
+  const SPECIES = {
+    cat:     { name: "고양이", suffix: "냥",   ears: "pointy", tail: "cat",    marks: "stripes", whiskers: true,
+               pal: { fur: "#fff4e4", line: "#3a2b33", ear: "#f5a3b5", stripe: "#e3a25e" } },
+    dog:     { name: "강아지", suffix: "멍",   ears: "floppy", tail: "short",  marks: "eyespot", whiskers: false,
+               pal: { fur: "#f6dcb4", line: "#4a3426", ear: "#b9835a", stripe: "#b9835a", light: "#fff6e8" } },
+    bear:    { name: "곰",     suffix: "곰",   ears: "round",  tail: "nub",    marks: "muzzle",  whiskers: false,
+               pal: { fur: "#c99670", line: "#3b2619", ear: "#ecbf98", stripe: "#8a5a3c", light: "#f3d9bb" } },
+    fox:     { name: "여우",   suffix: "여우", ears: "big",    tail: "bushy",  marks: "cheeks",  whiskers: true,
+               pal: { fur: "#f59a55", line: "#4a2616", ear: "#ffe2c4", stripe: "#c86a2a", light: "#fff4e4" } },
+    panda:   { name: "판다",   suffix: "판다", ears: "round",  tail: "nub",    marks: "patches", whiskers: false,
+               pal: { fur: "#ffffff", line: "#262230", ear: "#2e2a38", stripe: "#2e2a38", patch: "#2e2a38", light: "#ffffff" } },
+    raccoon: { name: "너구리", suffix: "너굴", ears: "round",  tail: "ringed", marks: "mask",    whiskers: true,
+               pal: { fur: "#bdb6ad", line: "#2f2a2a", ear: "#5f5650", stripe: "#5f5650", patch: "#4d4642", light: "#f4f0ea" } },
+  };
+  const speciesOf = (sp) => SPECIES[sp] || SPECIES.cat;
+  const formName = (form, sp) => FORMS[form].prefix + speciesOf(sp).suffix;
   const WISHES = {
     feed:  { text: "밥이 먹고 싶어요" },
     play:  { text: "별 받기 하고 싶어요" },
@@ -253,7 +365,7 @@ input#petName { font: inherit; padding: 6px 10px; border: 1px solid var(--line);
       sick: false, sleeping: false, poops: 0, poopTimer: -1, dead: false, misses: 0,
       zeroFlags: {}, stage: "egg", form: null, speed: 1, savedAt: Date.now(), log: [],
       coins: 3, hats: [], hat: null, wish: null, wishCooldown: 45, games: 0, best: 0,
-      happySum: 0, happyN: 0, sound: true,
+      happySum: 0, happyN: 0, sound: true, species: null,
     };
   }
 
@@ -261,6 +373,7 @@ input#petName { font: inherit; padding: 6px 10px; border: 1px solid var(--line);
     try { const raw = localStorage.getItem(SAVE_KEY); return raw ? JSON.parse(raw) : null; } catch { return null; }
   }
   function save() {
+    if (picking) return; // 친구를 고르기 전에는 저장하지 않음
     S.savedAt = Date.now();
     try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch {}
   }
@@ -271,10 +384,13 @@ input#petName { font: inherit; padding: 6px 10px; border: 1px solid var(--line);
 
   const loaded = load();
   let S = Object.assign(fresh(), loaded || {});
-  let dex = loadDex();
+  let dex = loadDex().map(k => k.includes(":") ? k : "cat:" + k); // 예전 도감은 고양이 기록
+  if (loaded && !S.species) S.species = "cat";                      // 예전 저장은 고양이로 이어감
+  let picking = !S.species;                                         // 첫 실행: 친구 고르기 화면
   let game = null;          // 별 받기 상태
   let toastTimer = 0;
-  let flashT = 0;           // 진화 연출
+  const sparks = [];        // 진화·부화 반짝이
+  let celebrate = null;     // 다음 프레임에 띄울 축하 팝업
   let jumpT = 0;            // 쓰다듬기 점프
   let lastPet = -Infinity;
   const hearts = [];
@@ -330,16 +446,17 @@ input#petName { font: inherit; padding: 6px 10px; border: 1px solid var(--line);
     if (st.id !== S.stage) {
       const prev = S.stage;
       S.stage = st.id;
-      flashT = 1.6; sfx.fanfare();
-      if (prev === "egg") log(`${iga(S.name)} 알에서 깨어났어요!`);
+      burst(); sfx.fanfare();
+      if (prev === "egg") { log(`${iga(S.name)} 알에서 깨어났어요!`); celebrate = { title: "알이 깨어났어요!", text: `${josa(S.name, "과", "와")} 함께하는 첫날이에요. 방을 눌러 쓰다듬어 보세요.` }; }
       else if (st.id === "adult") {
         S.form = decideForm();
-        const f = FORMS[S.form];
-        const isNew = !dex.includes(S.form);
-        if (isNew) { dex.push(S.form); saveDex(); renderDex(); }
-        log(`${iga(S.name)} ${josa(f.name, "으로", "로")} 자랐어요!${isNew ? " 도감에 새로 등록!" : ""}`);
+        const fname = formName(S.form, S.species), dkey = S.species + ":" + S.form;
+        const isNew = !dex.includes(dkey);
+        if (isNew) { dex.push(dkey); saveDex(); renderDex(); }
+        log(`${iga(S.name)} ${josa(fname, "으로", "로")} 자랐어요!${isNew ? " 도감에 새로 등록!" : ""}`);
+        celebrate = { title: `${josa(fname, "으로", "로")} 자랐어요!`, text: `${isNew ? "도감에 새로 등록됐어요. " : ""}어른이 된 기념으로 코인 10개를 받았어요.` };
         S.coins += 10;
-      } else log(`${iga(S.name)} ${josa(st.name, "으로", "로")} 자랐어요.`);
+      } else { log(`${iga(S.name)} ${josa(st.name, "으로", "로")} 자랐어요.`); celebrate = { title: `${josa(st.name, "으로", "로")} 자랐어요!`, text: "몸도 마음도 쑥쑥 크고 있어요." }; }
     }
     if (S.stage === "egg") return;
 
@@ -476,14 +593,15 @@ input#petName { font: inherit; padding: 6px 10px; border: 1px solid var(--line);
       use() { S.health = clamp(S.health + 20); setReact("eat", 0.8); log("비타민을 먹었어요."); return "힘이 나요!"; } },
     { id: "jelly", name: "에너지 젤리", price: 3, desc: "체력 +40",
       use() { S.energy = clamp(S.energy + 40); setReact("eat", 0.8); log("에너지 젤리를 먹었어요."); return "쌩쌩해요!"; } },
-    { id: "ribbon", name: "리본", price: 8, hat: true, desc: "머리에 다는 리본. 산 뒤에는 눌러서 쓰고 벗기" },
-    { id: "crown", name: "왕관", price: 20, hat: true, desc: "반짝이는 왕관. 산 뒤에는 눌러서 쓰고 벗기" },
+    { id: "ribbon", name: "리본", price: 8, hat: true, desc: "머리에 다는 리본. 산 뒤 눌러서 쓰고 벗기" },
+    { id: "crown", name: "왕관", price: 20, hat: true, desc: "반짝이는 왕관. 산 뒤 눌러서 쓰고 벗기" },
   ];
   function renderShop() {
     $("shop").innerHTML = SHOP.map(it => {
       const owned = it.hat && S.hats.includes(it.id);
-      const label = owned ? (S.hat === it.id ? "벗기기" : "쓰기") : `<span class="price">${it.price}코인</span>으로 사기`;
-      return `<div class="item"><div class="name">${it.name}</div><div class="desc">${it.desc}</div>
+      const label = owned ? (S.hat === it.id ? "벗기기" : "쓰기") : `<span class="price">${it.price}</span> 코인`;
+      return `<div class="frame item"><img class="ico lg" src="${ICON_URL[SHOP_ICON[it.id]]}" alt="">
+        <div><div class="name">${it.name}</div><div class="desc">${it.desc}</div></div>
         <button class="btn" id="shop_${it.id}" data-item="${it.id}">${label}</button></div>`;
     }).join("");
     updateShopState();
@@ -514,7 +632,7 @@ input#petName { font: inherit; padding: 6px 10px; border: 1px solid var(--line);
   const GAME_LEN = 25;
   function startGame() {
     game = { x: 32, dir: 0, items: [], t: GAME_LEN, spawn: 0.6, score: 0, lives: 3, hitT: 0, over: 0 };
-    $("actions").hidden = true; $("gameKeys").hidden = false; $("tip").textContent = "◀ ▶ 또는 화면 좌우를 눌러 움직여요";
+    $("actions").hidden = true; $("gameKeys").hidden = false; cv.parentElement.classList.add("playing"); $("tip").textContent = "◀ ▶를 누르고 있거나 방의 왼쪽·오른쪽을 눌러 움직여요.";
     sfx.good();
   }
   function updateGame(dt) {
@@ -546,7 +664,7 @@ input#petName { font: inherit; padding: 6px 10px; border: 1px solid var(--line);
     const { score, lives } = game;
     const played = GAME_LEN - game.t;
     game = null;
-    $("actions").hidden = false; $("gameKeys").hidden = true; $("tip").textContent = "화면을 누르면 쓰다듬어요";
+    $("actions").hidden = false; $("gameKeys").hidden = true; cv.parentElement.classList.remove("playing"); $("tip").textContent = "방을 누르면 쓰다듬어요.";
     if (quit && played < 3) { toast("다음에 놀아요."); updatePanel(); return; }
     S.games++;
     const newBest = score > S.best;
@@ -579,16 +697,17 @@ input#petName { font: inherit; padding: 6px 10px; border: 1px solid var(--line);
     save(); updatePanel();
   }
 
-  // ---- drawing (64x48 pixel LCD) ----
+  // ---- drawing (64x48 pixel room) ----
   const cv = $("lcd");
   let g = cv.getContext("2d");
-  let ink = "#2f3a1f", lcdBg = "#c4d3a2";
-  function readColors() {
-    const cs = getComputedStyle(document.documentElement);
-    ink = cs.getPropertyValue("--lcd-ink").trim() || ink;
-    lcdBg = cs.getPropertyValue("--lcd").trim() || lcdBg;
-    renderDex();
-  }
+  const C = {
+    line: "#3a2b33", fur: "#fff4e4", ear: "#f5a3b5", blush: "#f7949f", stripe: "#e3a25e", tear: "#7cc6ff", eggFill: "#fff1d6",
+    ink: "#2a2236", poop: "#8a5a3c", heart: "#ff6b86", star: "#ffd36b", rock: "#7d8399", bowl: "#5aa0ff", z: "#e6edff",
+    cross: "#ff5d6c", bubble: "#ffffff", ribbon: "#ff6b86", crown: "#ffd36b", alert: "#ff5d6c", spark: "#fff6b0",
+  };
+  let ink = C.ink, lcdBg = "#ffffff"; // lcdBg: eye highlight colour
+  let silhouette = false;              // dex: undiscovered forms drawn as a flat shadow
+  function readColors() { renderDex(); }
   const px = (x, y, w = 1, h = 1) => g.fillRect(Math.round(x), Math.round(y), w, h);
   function oval(cx, cy, rx, ry, fill = true) {
     for (let y = -ry; y <= ry; y++) for (let x = -rx; x <= rx; x++) {
@@ -596,7 +715,8 @@ input#petName { font: inherit; padding: 6px 10px; border: 1px solid var(--line);
       if (fill ? d <= 1 : d <= 1 && d > 1 - 2.2 / Math.min(rx, ry)) px(cx + x, cy + y);
     }
   }
-  function sprite(rows, x, y) {
+  function sprite(rows, x, y, color = C.ink) {
+    g.fillStyle = color;
     rows.forEach((r, j) => [...r].forEach((c, i) => c === "#" && px(x + i, y + j)));
   }
   const SPR = {
@@ -631,16 +751,31 @@ input#petName { font: inherit; padding: 6px 10px; border: 1px solid var(--line);
     mini:  { W: 11, earH: 3, headH: 9,  bodyH: 0, eyeW: 2, eyeH: 2, tail: 0 },
   };
   const catCache = {};
-  function buildCat(size, form) {
-    const key = size + ":" + (form || "");
+  function buildCat(size, form, species) {
+    const sp = speciesOf(species);
+    const key = size + ":" + (form || "") + ":" + (species || "cat");
     if (catCache[key]) return catCache[key];
     const s = { ...CAT_SIZES[size] };
+    if (sp.ears === "big") s.earH += 1;
     const W = s.W, H = s.earH + s.headH + s.bodyH;
     const grid = Array.from({ length: H }, () => Array(W).fill("."));
     const set = (x, y, c) => { if (y >= 0 && y < H && x >= 0 && x < W) grid[y][x] = c; };
     const mirror = (x, y, c) => { set(x, y, c); set(W - 1 - x, y, c); };
     // ears
-    if (form === "sleepy") {
+    if (sp.ears === "round") {
+      const y = s.earH - 3, w = s.W >= 17 ? 5 : 4;
+      for (let j = 0; j < 3; j++) for (let x = 1; x < 1 + w; x++) {
+        const edge = j === 0 ? x > 1 && x < w : x === 1 || x === w;
+        if (j === 0 && !edge) continue;
+        mirror(x, y + j, edge ? "#" : "o");
+      }
+    } else if (sp.ears === "floppy") {
+      // short tufts on top; the long ears are drawn over the head sides below
+      mirror(3, s.earH - 1, "#"); mirror(4, s.earH - 1, "#");
+    } else if (sp.ears === "big") {
+      for (let i = 0; i < s.earH; i++) { const w = i === 0 ? 0 : i + 1; for (let x = 1; x <= 1 + w; x++)
+        mirror(x, i, x === 1 || x === 1 + w || i === 0 ? "#" : "o"); }
+    } else if (form === "sleepy") {
       const y = s.earH - 2;
       [[2, y, "#"], [3, y, "#"], [4, y, "#"], [1, y + 1, "#"], [2, y + 1, "o"], [3, y + 1, "o"], [4, y + 1, "#"]]
         .forEach(([x, yy, c]) => mirror(x, yy, c));
@@ -654,6 +789,13 @@ input#petName { font: inherit; padding: 6px 10px; border: 1px solid var(--line);
       const fromBottom = y1 - y, inset = fromBottom < 3 ? 3 - fromBottom : y === y0 ? 1 : 0;
       for (let x = inset; x <= W - 1 - inset; x++)
         set(x, y, y === y0 || y === y1 || x === inset || x === W - 1 - inset ? "#" : "+");
+    }
+    if (sp.ears === "floppy") { // ears hanging down the sides of the head
+      const ew = s.W >= 17 ? 3 : 2, eh = Math.min(s.headH - 3, s.W >= 17 ? 7 : 5);
+      for (let j = 0; j < eh; j++) for (let x = 0; x < ew; x++) {
+        const edge = x === 0 || x === ew - 1 && j > 0 || j === eh - 1;
+        mirror(x, y0 + j, edge || j === 0 ? "#" : "o");
+      }
     }
     // body + paws
     const bodyW = form === "chubby" ? W - 2 : Math.max(7, W - 8);
@@ -672,31 +814,65 @@ input#petName { font: inherit; padding: 6px 10px; border: 1px solid var(--line);
       const cxm = (W - 1) / 2;
       for (let k = 0; k < s.bodyH - 2; k++) for (let x = cxm - 2; x <= cxm + 2; x++) set(x, y1 + 1 + k, "b");
     }
-    const out = { ...s, H, y0, y1, bx0, bx1, rows: grid.map(r => r.join("")) };
+    const out = { ...s, H, y0, y1, bx0, bx1, sp, rows: grid.map(r => r.join("")) };
     catCache[key] = out;
     return out;
   }
 
   let baseA = 1;
-  function pxA(x, y, a = 1) { g.globalAlpha = baseA * a; g.fillRect(Math.round(x), Math.round(y), 1, 1); g.globalAlpha = baseA; }
-  function bgPx(x, y) { const f = g.fillStyle; g.fillStyle = lcdBg; g.fillRect(Math.round(x), Math.round(y), 1, 1); g.fillStyle = f; }
+  // tone codes used by the cat/egg drawing: 1 outline, .22 fur, .6 inner ear, .5 blush, .7 stripe, .65 tear, .18 egg shell
+  const TONE = { 1: "line", 0.22: "fur", 0.6: "ear", 0.5: "blush", 0.7: "stripe", 0.65: "tear", 0.18: "eggFill", 0.3: "patch", 0.35: "light" };
+  let P = C; // current palette (species colours while a pet is drawn)
+  function pxA(x, y, a = 1) {
+    g.fillStyle = silhouette ? "#3c4768" : P[TONE[a]] || C[TONE[a]] || P.line;
+    g.fillRect(Math.round(x), Math.round(y), 1, 1);
+  }
+  function bgPx(x, y) { if (silhouette) return; g.fillStyle = lcdBg; g.fillRect(Math.round(x), Math.round(y), 1, 1); }
 
   // d: {size, form, cx, ground, t, bob, eyes, mouth, blush, look, tail:'wag'|'still', hat, extras}
   function drawCat(d) {
-    const c = buildCat(d.size, d.form);
+    const prevP = P;
+    const c = buildCat(d.size, d.form, d.species);
+    P = Object.assign({}, C, c.sp.pal);
+    const info = drawCatBody(d, c);
+    P = prevP;
+    return info;
+  }
+  function drawCatBody(d, c) {
+    const sp = c.sp;
     const ox = Math.round(d.cx - (c.W - 1) / 2), oy = Math.round(d.ground - c.H + 1 + (d.bob || 0));
     const cx = ox + (c.W - 1) / 2;
     const t = d.t || 0;
+    const wag = d.tail === "wag";
+    const cell = (x, y) => (c.rows[y - oy] || "")[x - ox]; // grid char under a screen pixel
+    const paint = (x, y, a) => { if (cell(x, y) === "+") pxA(x, y, a); };
 
     // tail (behind, to the right of the body)
-    if (c.tail) {
+    if (c.tail && sp.tail === "nub") {
+      const bx = ox + c.bx1, by = oy + c.H - 4;
+      pxA(bx + 1, by, 1); pxA(bx + 2, by, 1); pxA(bx + 1, by + 1, 0.22); pxA(bx + 2, by + 1, 1); pxA(bx + 1, by + 2, 1);
+    } else if (c.tail && sp.tail === "short") {
+      const bx = ox + c.bx1 + 1, by = oy + c.H - 3, n = Math.max(3, c.tail - 3);
+      const sw = wag ? Math.round(Math.sin(t / 90) * 1.5) : 0;
+      for (let k = 0; k < n; k++) { const x = bx + Math.round(k * 0.5) + (k > 1 ? sw : 0), y = by - k; pxA(x, y, 1); pxA(x + 1, y, 1); }
+    } else if (c.tail && sp.tail === "bushy") {
+      const bx = ox + c.bx1 + 1, by = oy + c.H - 3;
+      for (let k = 0; k < c.tail + 1; k++) {
+        const wave = wag ? Math.round(Math.sin(t / 260 + k * 0.7) * Math.min(1.4, k * 0.3)) : 0;
+        const x = bx + k, y = by - Math.round(k * 0.7) + wave, tip = k >= c.tail - 1;
+        pxA(x, y - 2, 1); pxA(x, y - 1, tip ? 0.35 : 0.22); pxA(x, y, tip ? 0.35 : 0.22); pxA(x, y + 1, 1);
+      }
+      const ex = bx + c.tail + 1, ey = by - Math.round((c.tail + 1) * 0.7);
+      pxA(ex, ey - 1, 1); pxA(ex, ey, 1);
+    } else if (c.tail) {
       const bx = ox + c.bx1 + 1, by = oy + c.H - 3;
       let lx = bx, ly = by;
       for (let k = 0; k < c.tail; k++) {
         const wave = d.tail === "wag" ? Math.round(Math.sin(t / 230 + k * 0.8) * Math.min(1.6, k * 0.35)) : 0;
         const up = k < c.tail - 2 ? Math.round(k * 0.45) : Math.round(k * 0.45) + (k - c.tail + 3) * 1.5;
         lx = bx + k - (k >= c.tail - 2 ? (k - c.tail + 3) : 0); ly = by - up + wave;
-        pxA(lx, ly, 1); pxA(lx, ly + 1, 1);
+        if (sp.tail === "ringed") { const a = k % 2 ? 0.3 : 0.22; pxA(lx, ly - 1, 1); pxA(lx, ly, a); pxA(lx, ly + 1, a); pxA(lx, ly + 2, 1); }
+        else { pxA(lx, ly, 1); pxA(lx, ly + 1, 1); }
       }
       if (d.form === "playful") { pxA(lx - 1, ly - 1, 1); pxA(lx - 2, ly, 1); }
     }
@@ -710,8 +886,8 @@ input#petName { font: inherit; padding: 6px 10px; border: 1px solid var(--line);
         else if (ch === "o") pxA(ox + i, oy + j, 0.6);
       }
     });
-    // ear twitch: flick the left ear tip now and then
-    if (d.form !== "sleepy" && d.twitch) { bgPx(ox + 1, oy); pxA(ox, oy + 1, 1); }
+    // ear twitch: flick the left ear tip now and then (pointed ears only)
+    if (d.form !== "sleepy" && d.twitch && (sp.ears === "pointy" || sp.ears === "big")) pxA(ox, oy + 1, 1);
 
     // forehead marks
     const fy = oy + c.y0 + 1;
@@ -719,7 +895,7 @@ input#petName { font: inherit; padding: 6px 10px; border: 1px solid var(--line);
       pxA(cx, fy, 1); pxA(cx - 1, fy + 1, 1); pxA(cx, fy + 1, 1); pxA(cx + 1, fy + 1, 1); pxA(cx, fy + 2, 1);
       if (Math.floor(t / 350) % 2) { pxA(ox - 2, oy + 2, 1); pxA(ox + c.W + 1, oy + c.y0 + 3, 1); }
       else { pxA(ox + c.W + 2, oy + 1, 1); pxA(ox - 3, oy + c.y0 + 5, 1); }
-    } else if (d.size === "teen" || d.size === "adult") {
+    } else if (sp.marks === "stripes" && (d.size === "teen" || d.size === "adult")) {
       pxA(cx, fy, 1); pxA(cx, fy + 1, 1); pxA(cx - 2, fy, 1); pxA(cx + 2, fy, 1);
     }
     if (d.form === "playful") { // tabby stripes on the sides of the head and body
@@ -735,6 +911,17 @@ input#petName { font: inherit; padding: 6px 10px; border: 1px solid var(--line);
     const eyesX = [cx - gap - ew + 1, cx + gap];
     const nose = er + eh - 1;
     const row = (x0, x1, y) => { for (let x = x0; x <= x1; x++) pxA(x, y, 1); };
+    // species markings under the face
+    if (sp.marks === "patches") eyesX.forEach(ex => { for (let y = er - 1; y <= er + eh; y++) for (let x = ex - 1; x <= ex + ew; x++)
+      if (!((y === er - 1 || y === er + eh) && (x === ex - 1 || x === ex + ew))) paint(x, y, 0.3); });
+    if (sp.marks === "mask") for (let y = er - 1; y <= er + eh - 1; y++) for (let x = ox + 1; x < ox + c.W - 1; x++)
+      if (Math.abs(x - cx) > 1 || y < er) paint(x, y, 0.3);
+    if (sp.marks === "eyespot") { const ex = eyesX[1]; for (let y = er - 2; y <= er + eh; y++) for (let x = ex - 1; x <= ex + ew + 1; x++) paint(x, y, 0.7); }
+    if (sp.marks === "muzzle" || sp.marks === "mask" || sp.marks === "eyespot" || sp.marks === "patches")
+      for (let y = nose - 1; y <= nose + 2; y++) for (let x = cx - 3; x <= cx + 3; x++)
+        if (!((y === nose - 1 || y === nose + 2) && Math.abs(x - cx) === 3)) paint(x, y, 0.35);
+    if (sp.marks === "cheeks") for (let y = nose; y <= oy + c.y1; y++) for (let x = ox; x < ox + c.W; x++)
+      if (Math.abs(x - cx) >= 2) paint(x, y, 0.35);
     eyesX.forEach((ex, idx) => {
       const lx = ex + look, mid = ex + Math.floor(ew / 2);
       switch (d.eyes) {
@@ -754,7 +941,7 @@ input#petName { font: inherit; padding: 6px 10px; border: 1px solid var(--line);
           if (d.eyes === "worried") {
             if (idx === 0) { pxA(ex, er - 1, 1); pxA(ex + 1, er - 2, 1); pxA(ex + ew - 1, er - 2, 1); }
             else { pxA(ex + ew - 1, er - 1, 1); pxA(ex + ew - 2, er - 2, 1); pxA(ex, er - 2, 1); }
-            if (idx === 0 && Math.floor(t / 500) % 2) pxA(ex, er + eh + 1, 0.6);
+            if (idx === 0 && Math.floor(t / 500) % 2) pxA(ex, er + eh + 1, 0.65);
           }
       }
     });
@@ -776,14 +963,14 @@ input#petName { font: inherit; padding: 6px 10px; border: 1px solid var(--line);
         if (d.form === "playful") pxA(cx + 2, nose + 2, 1);
     }
     // whiskers
-    if (!small) {
+    if (!small && sp.whiskers) {
       pxA(ox - 1, nose, 1); pxA(ox - 2, nose, 1); pxA(ox - 3, nose - 1, 1);
       pxA(ox - 1, nose + 1, 1); pxA(ox - 2, nose + 1, 1); pxA(ox - 3, nose + 2, 1);
       const rx = ox + c.W;
       pxA(rx, nose, 1); pxA(rx + 1, nose, 1); pxA(rx + 2, nose - 1, 1);
       pxA(rx, nose + 1, 1); pxA(rx + 1, nose + 1, 1); pxA(rx + 2, nose + 2, 1);
     }
-    if (d.hat) sprite(SPR[d.hat], cx - 2, oy + c.y0 - 3);
+    if (d.hat) sprite(SPR[d.hat], cx - 2, oy + c.y0 - 3, C[d.hat]);
     return { ox, oy, cx, top: oy, right: ox + c.W, nose };
   }
 
@@ -803,8 +990,8 @@ input#petName { font: inherit; padding: 6px 10px; border: 1px solid var(--line);
     }
     // paw print
     const py = cy + 2;
-    [[-1, 0], [0, 0], [1, 0], [-2, 1], [-1, 1], [0, 1], [1, 1], [2, 1], [-1, 2], [0, 2], [1, 2]].forEach(([dx, dy]) => pxA(x0 + dx, py + dy, 0.7));
-    [[-3, -2], [-1, -3], [1, -3], [3, -2]].forEach(([dx, dy]) => pxA(x0 + dx, py + dy, 0.7));
+    [[-1, 0], [0, 0], [1, 0], [-2, 1], [-1, 1], [0, 1], [1, 1], [2, 1], [-1, 2], [0, 2], [1, 2]].forEach(([dx, dy]) => pxA(x0 + dx, py + dy, 0.6));
+    [[-3, -2], [-1, -3], [1, -3], [3, -2]].forEach(([dx, dy]) => pxA(x0 + dx, py + dy, 0.6));
     if (cracked) [[-5, -4], [-4, -5], [-3, -4], [-2, -5], [-1, -4], [0, -5], [1, -4]].forEach(([dx, dy]) => pxA(x0 + dx, cy + dy, 1));
   }
 
@@ -820,14 +1007,44 @@ input#petName { font: inherit; padding: 6px 10px; border: 1px solid var(--line);
     }
   }
 
+  function skyColor(h) { return h >= 7 && h < 17 ? "#9ad8ff" : h >= 17 && h < 19 ? "#ffb27a" : h >= 5 && h < 7 ? "#c9b6ff" : "#2a2f5c"; }
+  function drawRoom(t) {
+    const h = new Date().getHours(), night = h < 5 || h >= 19;
+    g.fillStyle = "#f2e2cf"; g.fillRect(0, 0, 64, 29);            // wall
+    g.fillStyle = "#e6d0b8"; for (let x = 0; x < 64; x += 6) g.fillRect(x, 0, 1, 27);
+    g.fillStyle = "#c9a888"; g.fillRect(0, 27, 64, 2);            // skirting
+    g.fillStyle = "#d9a877"; g.fillRect(0, 29, 64, 19);           // floor
+    g.fillStyle = "#c48f5c";
+    for (let y = 32; y < 48; y += 4) { g.fillRect(0, y, 64, 1); for (let x = (y % 8 ? 5 : 15); x < 64; x += 20) g.fillRect(x, y - 3, 1, 3); }
+    // window with the real time of day outside
+    g.fillStyle = "#8b6a50"; g.fillRect(21, 3, 22, 18);
+    g.fillStyle = skyColor(h); g.fillRect(23, 5, 18, 14);
+    if (night) {
+      g.fillStyle = "#ffe9a8"; g.fillRect(36, 7, 3, 3); g.fillStyle = "#2a2f5c"; g.fillRect(37, 7, 2, 2);
+      g.fillStyle = "#ffffff"; for (const [x, y] of [[25, 7], [30, 12], [27, 16], [34, 15]]) if ((Math.floor(t / 700) + x) % 3) g.fillRect(x, y, 1, 1);
+    } else {
+      g.fillStyle = "#ffffff"; const cx0 = 24 + (Math.floor(t / 400) % 20);
+      g.fillRect(cx0 % 18 + 23, 8, 5, 2); g.fillRect(cx0 % 18 + 24, 7, 3, 1);
+      g.fillStyle = "#7cc87a"; g.fillRect(23, 16, 18, 3);
+    }
+    g.fillStyle = "#8b6a50"; g.fillRect(31, 5, 2, 14); g.fillRect(23, 11, 18, 1);
+    // plant
+    g.fillStyle = "#4f9a5a"; px(4, 17, 2, 6); px(2, 19, 2, 3); px(7, 18, 2, 4); px(5, 15, 1, 2);
+    g.fillStyle = "#c8735a"; px(2, 23, 7, 5); g.fillStyle = "#a95b45"; px(2, 23, 7, 1);
+    // rug
+    g.fillStyle = "#9fd6c4"; oval(26, 42, 17, 3);
+  }
+
   function renderGame(t) {
-    for (let x = 0; x < 64; x++) if ((GAME_LEN - game.t) / GAME_LEN * 64 < x) px(x, 0);
-    for (let i = 0; i < 3; i++) if (i < game.lives) sprite(SPR.heartS, 2 + i * 4, 3);
-    for (const it of game.items) sprite(it.rock ? SPR.rock : SPR.star, it.x - 2, it.y - 2);
-    for (let x = 2; x < 62; x += 2) px(x, 45);
+    const h = new Date().getHours();
+    g.fillStyle = skyColor(h); g.fillRect(0, 0, 64, 48);
+    g.fillStyle = "#6fd08c"; g.fillRect(0, 44, 64, 4); g.fillStyle = "#4fae6c"; g.fillRect(0, 44, 64, 1);
+    g.fillStyle = "#ffffff"; for (let x = 0; x < 64; x++) if ((GAME_LEN - game.t) / GAME_LEN * 64 < x) px(x, 0);
+    for (let i = 0; i < 3; i++) if (i < game.lives) sprite(SPR.heartS, 2 + i * 4, 3, C.heart);
+    for (const it of game.items) sprite(it.rock ? SPR.rock : SPR.star, it.x - 2, it.y - 2, it.rock ? C.rock : C.star);
     if (game.hitT > 0 && Math.floor(t / 80) % 2) return;
     const hit = game.hitT > 0;
-    drawCat({ size: "mini", form: S.form, cx: game.x, ground: 42, t, look: game.dir,
+    drawCat({ size: "mini", form: S.form, species: S.species, cx: game.x, ground: 42, t, look: game.dir,
       eyes: hit ? "squint" : "open", mouth: hit ? "frown" : "open", hat: S.hat });
   }
 
@@ -835,10 +1052,8 @@ input#petName { font: inherit; padding: 6px 10px; border: 1px solid var(--line);
   function setReact(type, dur = 1.2) { react = { type, t: dur, dur }; }
 
   function render(t = performance.now()) {
-    g.fillStyle = lcdBg; g.fillRect(0, 0, 64, 48);
-    g.fillStyle = ink;
     if (game) { renderGame(t); return; }
-    for (let x = 2; x < 62; x += 2) px(x, 43);
+    drawRoom(t);
     const lively = !S.sleeping && !S.dead && S.stage !== "egg";
     let cx = 23, look = 0;
     if (lively && !react) {
@@ -866,66 +1081,174 @@ input#petName { font: inherit; padding: 6px 10px; border: 1px solid var(--line);
       }
       const blink = face.eyes === "open" && (t % 3900) < 140;
       const twitch = lively && (t % 5300) < 160;
-      const info = drawCat({ size: SIZE_OF[S.stage], form: S.stage === "adult" ? S.form : null, cx, ground: 41, t, bob,
+      const info = drawCat({ size: SIZE_OF[S.stage], form: S.stage === "adult" ? S.form : null, species: S.species, cx, ground: 41, t, bob,
         ...face, eyes: blink ? "line" : face.eyes, look, twitch, tail: S.dead || S.sleeping ? "still" : "wag", hat: S.hat });
-      if (mood === "sick") { sprite(SPR.cross, info.right + 2, info.top + 1); pxA(info.right - 2, info.top + 7, 0.6); }
-      if (react && react.type === "eat") sprite(SPR.bowl, info.ox - 7, 38);
+      if (mood === "sick") { sprite(SPR.cross, info.right + 2, info.top + 1, C.cross); pxA(info.right - 2, info.top + 7, 0.65); }
+      if (react && react.type === "eat") sprite(SPR.bowl, info.ox - 7, 38, C.bowl);
       if (react && react.type === "bath") {
         const k = react.dur - react.t;
         for (let i = 0; i < 4; i++) {
           const bx = info.ox - 2 + ((i * 7 + 3) % 22), by = 30 - ((k * 14 + i * 5) % 22);
-          sprite([".#.", "#.#", ".#."], bx, by);
+          sprite([".#.", "#.#", ".#."], bx, by, C.bubble);
         }
       }
     }
-    for (let i = 0; i < S.poops; i++) sprite(SPR.poop, 49 + (i % 2) * 7, 38 - Math.floor(i / 2) * 5);
-    for (const h of hearts) sprite(SPR.heartS, h.x, h.y);
-    if (S.wish && !S.sleeping && !S.dead) {
-      oval(53, 9, 9, 7, false);
-      px(45, 16, 1, 1); px(44, 18, 1, 1);
-      if (Math.floor(t / 600) % 4) sprite(WISH_ICON[S.wish.type], 51, 7);
-    }
+    for (let i = 0; i < S.poops; i++) sprite(SPR.poop, 49 + (i % 2) * 7, 38 - Math.floor(i / 2) * 5, C.poop);
+    for (const h of hearts) sprite(SPR.heartS, h.x, h.y, C.heart);
     if (S.sleeping) {
-      g.globalAlpha = 0.3; g.fillRect(0, 0, 64, 48); g.globalAlpha = 1; g.fillStyle = ink;
+      g.fillStyle = "rgba(14, 18, 48, 0.5)"; g.fillRect(0, 0, 64, 48);
       const zy = 8 + Math.round(Math.sin(t / 500) * 2);
-      sprite(SPR.z, 42, zy); sprite(SPR.z, 48, zy - 5);
+      sprite(SPR.z, 44, zy, C.z); sprite(SPR.z, 50, zy - 5, C.z);
     }
-    if (S.dead) sprite(SPR.skull, 4, 4);
+    if (S.wish && !S.sleeping && !S.dead) {
+      g.fillStyle = C.bubble; oval(53, 9, 9, 7, true);
+      g.fillStyle = C.ink; oval(53, 9, 9, 7, false);
+      g.fillStyle = C.bubble; px(45, 16, 2, 2); px(43, 19, 1, 1);
+      if (Math.floor(t / 600) % 4) sprite(WISH_ICON[S.wish.type], 51, 7, S.wish.type === "pet" ? C.heart : S.wish.type === "play" ? "#e0a800" : C.ink);
+    }
+    if (S.dead) sprite(SPR.skull, 4, 4, C.ink);
     const needs = !S.dead && S.stage !== "egg" && (S.hunger < 25 || S.happy < 25 || S.sick || S.poops >= 2 || S.energy < 15);
-    if (needs && Math.floor(t / 500) % 2) sprite(["#", "#", "#", ".", "#"], 4, 4);
-    if (flashT > 0 && Math.floor(flashT * 8) % 2) {
-      g.globalCompositeOperation = "difference"; g.fillStyle = "#ffffff"; g.fillRect(0, 0, 64, 48);
-      g.globalCompositeOperation = "source-over"; g.fillStyle = ink;
-    }
+    if (needs && Math.floor(t / 500) % 2) sprite(["#", "#", "#", ".", "#"], 3, 3, C.alert);
+    for (const sp of sparks) { g.fillStyle = sp.life > 0.4 ? C.spark : C.star; px(sp.x, sp.y, sp.big ? 2 : 1, sp.big ? 2 : 1); }
   }
 
   // ---- dex ----
   function renderDex() {
     const el = $("dex");
+    const sp = S.species || "cat";
     el.innerHTML = Object.entries(FORMS).map(([id, f]) => {
-      const found = dex.includes(id);
-      return `<div class="dex-slot ${found ? "found" : ""}">
+      const found = dex.includes(sp + ":" + id);
+      return `<div class="frame dex-slot ${found ? "found" : ""}">
         <canvas width="64" height="48" data-form="${id}" aria-hidden="true"></canvas>
-        <div class="nm">${found ? f.name : "???"}</div><div class="hint">${f.hint}</div></div>`;
+        <div class="nm">${found ? formName(id, sp) : "???"}</div><div class="hint">${f.hint}</div></div>`;
     }).join("");
     // draw each form straight onto its own 64x48 canvas; undiscovered forms show as a faint silhouette
     const mainCtx = g;
     el.querySelectorAll("canvas").forEach(c => {
-      const found = dex.includes(c.dataset.form);
+      const found = dex.includes(sp + ":" + c.dataset.form);
       g = c.getContext("2d");
-      g.fillStyle = lcdBg; g.fillRect(0, 0, 64, 48);
-      baseA = found ? 1 : 0.2; g.globalAlpha = baseA; g.fillStyle = ink;
-      drawCat({ size: "adult", form: c.dataset.form, cx: 27, ground: 41, t: 0, ...faceFor(found ? "happy" : "ok", c.dataset.form), tail: "still" });
-      baseA = 1; g.globalAlpha = 1;
+      g.fillStyle = "#f2e2cf"; g.fillRect(0, 0, 64, 48); g.fillStyle = "#d9a877"; g.fillRect(0, 38, 64, 10);
+      silhouette = !found;
+      drawCat({ size: "adult", form: c.dataset.form, species: sp, cx: 27, ground: 41, t: 0, ...faceFor(found ? "happy" : "ok", c.dataset.form), tail: "still" });
+      silhouette = false;
     });
     g = mainCtx;
-    $("dexCount").textContent = `${dex.length} / ${Object.keys(FORMS).length}`;
+    const mine = dex.filter(k => k.startsWith(sp + ":")).length;
+    $("dexCount").textContent = `${speciesOf(sp).name} ${mine} / 5 · 전체 ${dex.length} / ${5 * Object.keys(SPECIES).length}`;
   }
 
+  // ---- pixel icons (12x12, drawn once into data URLs) ----
+  const ICON_PAL = { k: "#1a1626", w: "#ffffff", y: "#ffd36b", o: "#e89a3c", r: "#ff6b7d", p: "#ffb3c4", b: "#5aa0ff",
+    l: "#9fd8ff", g: "#6fd08c", n: "#9a6a45", c: "#fff1d6", s: "#b8c0d8", m: "#7fe0c0", d: "#4a4f66" };
+  const ICONS = {
+    bowl:  ["............", "...l..l..l..", "....l..l..l.", "............", ".kkkkkkkkkk.", "kccwccccwcck", "kccccccccc ck", "kbbbbbbbbbbk", ".kbwbbbbbbk.", "..kbbbbbbk..", "...kkkkkk...", "............"],
+    fish:  ["............", "............", "...kkkk...k.", "..kllllk.kk.", ".kllllllkllk", "kkwkllllllk.", "klllllllllk.", ".kllllllkllk", "..kllllk.kk.", "...kkkk...k.", "............", "............"],
+    star:  [".....kk.....", "....kyyk....", "....kyyk....", "kkkkkyykkkkk", "kyyyyyyyyyyk", ".kyywyyyyyk.", "..kyyyyyyk..", "..kyyyyyyk..", ".kyyykkyyyk.", ".kyyk..kyyk.", "kyyk....kyyk", "kkk......kkk"],
+    bubble:["......kkk...", ".....kwllk..", ".....klllk..", "..kk..kkk...", ".kwlk.......", ".kllk..kkk..", "..kk..kwllk.", "......kllllk", ".kkkkkkkkkkk", "kppppppppppk", "kpwpppppppok", ".kkkkkkkkkk."],
+    moon:  ["....kkkk....", "..kkyyyk....", ".kyyyyk.....", ".kyyyk......", "kyyyyk......", "kyyyyk......", "kyyyyk......", "kyyyyyk...k.", ".kyyyyykkkk.", ".kyyyyyyyyk.", "..kkyyyykk..", "....kkkk...."],
+    sun:   [".....yy.....", ".y...yy...y.", "..y......y..", "....kkkk....", "...kyyyyk...", "yy.kywyyk.yy", "yy.kyyyyk.yy", "...kyyyyk...", "....kkkk....", "..y......y..", ".y...yy...y.", ".....yy....."],
+    pill:  ["........kkk.", ".......krrrk", "......krrwrk", ".....krrrrk.", "....kkrrrk..", "...kwwkkk...", "..kwwwwk....", ".kwwwwk.....", "kwwwwk......", "kwwwk.......", ".kkk........", "............"],
+    heart: ["............", "..kk...kk...", ".krrk.krrk..", "krwrrkrrrrk.", "krrrrrrrrrk.", "krrrrrrrrrk.", ".krrrrrrrk..", "..krrrrrk...", "...krrrk....", "....krk.....", ".....k......", "............"],
+    drop:  [".....kk.....", "....kllk....", "....kllk....", "...kllllk...", "..kllllllk..", ".kllllllllk.", ".kwlllllllk.", ".kwlllllllk.", ".kllllllllk.", "..kllllllk..", "...kkkkkk...", "............"],
+    bolt:  ["......kkkk..", ".....kyyyk..", "....kyyyk...", "...kyyyk....", "..kyyyykkk..", "..kyyyyyyk..", "...kkkyyk...", "....kyyk....", "...kyyk.....", "..kyyk......", "..kyk.......", "..kk........"],
+    plus:  ["............", "....kkkk....", "....kggk....", "....kggk....", ".kkkkggkkkk.", ".kggggggggk.", ".kggggggggk.", ".kkkkggkkkk.", "....kggk....", "....kggk....", "....kkkk....", "............"],
+    coin:  ["............", "...kkkkkk...", "..kyyyyyyk..", ".kyywyyyyok.", ".kywyykyyok.", ".kyyykkkyok.", ".kyykkkkkok.", ".kyyykkkyok.", ".kyyyyyyyok.", "..kyoooook..", "...kkkkkk...", "............"],
+    house: [".....kk.....", "....krrk....", "...krrrrk...", "..krrrrrrk..", ".krrrrrrrrk.", "kkkkkkkkkkkk", ".kcccccccck.", ".kckkkcccck.", ".kckokcbbck.", ".kckokcbbck.", ".kckokcccck.", ".kkkkkkkkkk."],
+    shop:  ["............", "kkkkkkkkkkkk", "kmwmwmwmwmwk", "kmwmwmwmwmwk", ".kkkkkkkkkk.", ".kcccccccck.", ".kcllkcccck.", ".kcllkckkck.", ".kccccckock.", ".kccccckock.", ".kkkkkkkkkk.", "............"],
+    book:  ["............", "..kkkkkkkkk.", ".kopppppppk.", ".koppwpwppk.", ".kopppppppk.", ".koppwwwppk.", ".koppwwwppk.", ".kopppppppk.", ".kopppppppk.", ".kowwwwwwwk.", ".kkkkkkkkkk.", "............"],
+    note:  ["............", "..kkkkkkk...", "..kwwwwwkk..", "..kwkkkwwk..", "..kwwwwwwk..", "..kwkkkkwk..", "..kwwwwwwk..", "..kwkkkkwk..", "..kwwwwwwk..", "..kwkkkwwk..", "..kkkkkkkk..", "............"],
+    gear:  [".....kk.....", "..k.kssk.k..", ".ksksssskck.", "..kssssssk..", "kkssskkssskk", "ksssk..ksssk", "ksssk..ksssk", "kkssskkssskk", "..kssssssk..", ".kcksssskck.", "..k.kssk.k..", ".....kk....."],
+    cake:  [".....y......", ".....r......", ".....k......", "..kkkkkkkk..", ".kwwwwwwwwk.", ".kpwpwpwpwk.", ".kppppppppk.", ".kccccccccck", ".kpppppppppk", ".kccccccccck", ".kkkkkkkkkkk", "............"],
+    ribbon:["............", "............", ".kk......kk.", "kppk.kk.kppk", "kpppkrrkpppk", "kpwprrrrppk.", "kpppkrrkpppk", "kppk.kk.kppk", ".kk.krrk.kk.", "...krk.krk..", "...kk...kk..", "............"],
+    crown: ["............", "............", ".k...k...k..", "kyk.kyk.kyk.", "kyyk.y.kyyk.", "kyyyyyyyyyk.", "kyryyyyyryk.", "kyyyybyyyyk.", "kyyyyyyyyyk.", "kkkkkkkkkkk.", "............", "............"],
+  };
+  const ICON_URL = {};
+  for (const [name, rows] of Object.entries(ICONS)) {
+    const c = document.createElement("canvas"); c.width = 12; c.height = 12;
+    const x = c.getContext("2d");
+    rows.forEach((r, j) => [...r.replace(/ /g, "")].slice(0, 12).forEach((ch, i) => {
+      if (ICON_PAL[ch]) { x.fillStyle = ICON_PAL[ch]; x.fillRect(i, j, 1, 1); }
+    }));
+    ICON_URL[name] = c.toDataURL();
+  }
+  const SHOP_ICON = { cake: "cake", vitamin: "pill", jelly: "bolt", ribbon: "ribbon", crown: "crown" };
+  document.querySelectorAll("img[data-icon]").forEach(img => { img.src = ICON_URL[img.dataset.icon]; });
+
+  // ---- tabs ----
+  function showTab(name) {
+    document.querySelectorAll(".page").forEach(pg => { pg.hidden = pg.dataset.page !== name; });
+    document.querySelectorAll(".tab").forEach(tb => tb.setAttribute("aria-selected", String(tb.dataset.tab === name)));
+    scrollTo(0, 0);
+  }
+  document.querySelector(".tabbar").addEventListener("click", e => {
+    const b = e.target.closest(".tab"); if (b) { sfx.tap(); showTab(b.dataset.tab); }
+  });
+
+  // ---- first-run friend picker ----
+  let pickSel = "cat", pickKeep = null;
+  $("pickGrid").innerHTML = Object.entries(SPECIES).map(([id, sp]) =>
+    `<button class="pick-card" role="radio" aria-checked="${id === pickSel}" data-sp="${id}">
+      <canvas width="40" height="30" aria-hidden="true"></canvas><span>${sp.name}</span></button>`).join("");
+  function drawPickCards(t) {
+    const keep = g;
+    document.querySelectorAll(".pick-card").forEach(b => {
+      g = b.querySelector("canvas").getContext("2d");
+      g.clearRect(0, 0, 40, 30);
+      const on = b.dataset.sp === pickSel;
+      drawCat({ size: "child", species: b.dataset.sp, cx: 18, ground: 27, t: on ? t : 0,
+        bob: on ? (Math.floor(t / 300) % 2 ? 0 : -1) : 0, tail: on ? "wag" : "still",
+        eyes: on ? "happy" : "open", mouth: on ? "open" : "w", blush: on });
+    });
+    g = keep;
+  }
+  function showPick(keep) {
+    picking = true; pickKeep = keep || null;
+    document.body.classList.add("picking");
+    document.querySelectorAll(".page").forEach(pg => { pg.hidden = pg.dataset.page !== "pick"; });
+    $("pickName").value = keep && keep.name ? keep.name : "";
+    scrollTo(0, 0);
+  }
+  $("pickGrid").addEventListener("click", e => {
+    const b = e.target.closest(".pick-card"); if (!b) return;
+    pickSel = b.dataset.sp; sfx.tap();
+    document.querySelectorAll(".pick-card").forEach(x => x.setAttribute("aria-checked", String(x === b)));
+  });
+  $("pickGo").addEventListener("click", () => {
+    const name = $("pickName").value.trim().slice(0, 8) || "몽글이";
+    S = Object.assign(fresh(name), pickKeep || {}, { name, species: pickSel });
+    S.log = []; log(`${speciesOf(pickSel).name} 알을 받았어요. 이름은 ${josa(name, "으로", "로")} 지었어요.`);
+    picking = false; document.body.classList.remove("picking");
+    save(); renderDex(); showTab("home"); updatePanel(); sfx.good();
+    toast("알이 곧 깨어나요!");
+  });
+
+  // ---- celebration: sparkles + popup ----
+  function burst() {
+    for (let i = 0; i < 18; i++) {
+      const a = (i / 18) * Math.PI * 2;
+      sparks.push({ x: 26, y: 28, vx: Math.cos(a) * (14 + Math.random() * 10), vy: Math.sin(a) * (14 + Math.random() * 10) - 8, life: 0.9 + Math.random() * 0.5, big: i % 3 === 0 });
+    }
+  }
+  function showModal(title, text) {
+    $("modalTitle").textContent = title; $("modalText").textContent = text;
+    const mc = $("modalCv").getContext("2d"), keep = g;
+    g = mc; drawRoom(0);
+    if (S.stage === "egg") drawEgg(30, 41, 0, false, false);
+    else drawCat({ size: SIZE_OF[S.stage], form: S.stage === "adult" ? S.form : null, species: S.species, cx: 30, ground: 41, t: 0,
+      eyes: "happy", mouth: "open", blush: true, tail: "still", hat: S.hat });
+    g = keep;
+    $("modal").hidden = false; $("modalOk").focus();
+  }
+  $("modalOk").addEventListener("click", () => { $("modal").hidden = true; sfx.tap(); });
+
+  $("today").textContent = new Date().toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "short" });
+
   // ---- panel ----
-  const BAR_DEFS = [["hunger", "배부름"], ["happy", "행복"], ["clean", "청결"], ["energy", "체력"], ["health", "건강"]];
-  $("bars").innerHTML = BAR_DEFS.map(([k, label]) =>
-    `<div class="bar"><span>${label}</span><div class="track"><div class="fill" id="b_${k}"></div></div><span class="num" id="n_${k}"></span></div>`).join("");
+  const BAR_DEFS = [["hunger", "배부름", "fish"], ["happy", "행복", "heart"], ["clean", "청결", "drop"], ["energy", "체력", "bolt"], ["health", "건강", "plus"]];
+  $("bars").innerHTML = BAR_DEFS.map(([k, label, ic]) =>
+    `<div class="bar"><img class="ico" src="${ICON_URL[ic]}" alt=""><span>${label}</span><div class="track"><div class="fill" id="b_${k}"></div></div><span class="num" id="n_${k}"></span></div>`).join("");
+  $("hud").innerHTML = BAR_DEFS.map(([k, label, ic]) =>
+    `<div class="stat" title="${label}"><img class="ico" src="${ICON_URL[ic]}" alt="${label}"><div class="meter"><i id="m_${k}"></i></div></div>`).join("");
 
   function updatePanel() {
     for (const [k] of BAR_DEFS) {
@@ -934,12 +1257,21 @@ input#petName { font: inherit; padding: 6px 10px; border: 1px solid var(--line);
       fill.style.width = v + "%";
       fill.style.background = v < 25 ? "var(--bad)" : v < 50 ? "var(--warn)" : "var(--good)";
       $("n_" + k).textContent = v;
+      const m = $("m_" + k); m.style.width = v + "%"; m.style.background = fill.style.background;
     }
-    $("fStage").textContent = S.dead ? "별" : S.stage === "adult" && S.form ? FORMS[S.form].name : stageOf(S.age).name;
+    $("fStage").textContent = S.dead ? "별" : S.stage === "adult" && S.form ? formName(S.form, S.species) : stageOf(S.age).name;
     $("fAge").textContent = Math.floor(S.age / 60) + "분";
     $("fWeight").textContent = S.weight + "g";
     $("fCoins").textContent = S.coins;
-    $("title").textContent = `${S.name} 키우기`;
+    $("title").textContent = S.name;
+    $("fBest").textContent = S.best + "개";
+    $("nametag").textContent = `${S.name} · ${$("fStage").textContent}`;
+    const hurt = !S.dead && S.stage !== "egg";
+    $("aMed").classList.toggle("alert", hurt && S.sick);
+    $("aClean").classList.toggle("alert", hurt && S.poops >= 2);
+    $("aFeed").classList.toggle("alert", hurt && !S.sleeping && S.hunger < 25);
+    $("aSleep").classList.toggle("alert", hurt && !S.sleeping && S.energy < 15);
+    $("aPlay").classList.toggle("alert", hurt && !S.sleeping && S.happy < 25);
     const pills = [];
     if (S.dead) pills.push(["bad", "별이 됨"]);
     else if (S.stage === "egg") pills.push(["", "부화 중"]);
@@ -954,12 +1286,12 @@ input#petName { font: inherit; padding: 6px 10px; border: 1px solid var(--line);
       if (!pills.length) pills.push(["good", "기분 좋음"]);
     }
     if (S.misses) pills.push(["", `돌봄 실수 ${S.misses}`]);
-    if (S.best) pills.push(["", `별 받기 최고 ${S.best}개`]);
     $("status").innerHTML = pills.map(([c, l]) => `<span class="pill ${c}">${l}</span>`).join("");
     $("log").innerHTML = S.log.map(e => `<li><time>${e.t}</time><span>${escapeHtml(e.msg)}</span></li>`).join("");
     $("speedBtn").textContent = `시간 ×${S.speed}`;
     $("soundBtn").textContent = S.sound ? "소리 켬" : "소리 끔";
-    $("aSleep").textContent = S.sleeping ? "깨우기" : "재우기";
+    $("aSleep").querySelector(".lbl").textContent = S.sleeping ? "깨우기" : "재우기";
+    $("aSleep").querySelector("img").src = ICON_URL[S.sleeping ? "sun" : "moon"];
     if (document.activeElement !== $("petName")) $("petName").value = S.name;
     updateShopState();
   }
@@ -1016,10 +1348,11 @@ input#petName { font: inherit; padding: 6px 10px; border: 1px solid var(--line);
   resetBtn.addEventListener("click", () => { resetBtn.hidden = true; yes.hidden = false; no.hidden = false; });
   no.addEventListener("click", () => { resetBtn.hidden = false; yes.hidden = true; no.hidden = true; });
   yes.addEventListener("click", () => {
-    const keep = { speed: S.speed, sound: S.sound, coins: S.coins, hats: S.hats, hat: S.hat, best: S.best };
-    S = Object.assign(fresh(S.name), keep);
-    if (game) { game = null; $("actions").hidden = false; $("gameKeys").hidden = true; }
-    log("새 알을 받았어요. 코인과 꾸미기는 그대로예요."); save(); updatePanel(); no.click(); toast("새 알이 왔어요!");
+    const keep = { speed: S.speed, sound: S.sound, coins: S.coins, hats: S.hats, hat: S.hat, best: S.best, name: S.name };
+    if (game) { game = null; $("actions").hidden = false; $("gameKeys").hidden = true; cv.parentElement.classList.remove("playing"); }
+    no.click(); pickSel = S.species || "cat";
+    document.querySelectorAll(".pick-card").forEach(x => x.setAttribute("aria-checked", String(x.dataset.sp === pickSel)));
+    showPick(keep);
   });
   matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", readColors);
   new MutationObserver(readColors).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
@@ -1033,20 +1366,23 @@ input#petName { font: inherit; padding: 6px 10px; border: 1px solid var(--line);
   }
   if (loaded) catchUp(S.savedAt);
   // an adult from an older save gets its form now
-  if (S.stage === "adult" && !S.form) { S.form = decideForm(); if (!dex.includes(S.form)) { dex.push(S.form); saveDex(); } }
-  if (!S.log.length) log("새 알을 받았어요.");
+  if (S.stage === "adult" && !S.form) { S.form = decideForm(); const k = S.species + ":" + S.form; if (!dex.includes(k)) { dex.push(k); saveDex(); } }
+  if (!S.log.length && !picking) log("새 알을 받았어요.");
 
   readColors();
   renderShop();
   let last = performance.now(), acc = 0, saveAcc = 0;
   function frame(t) {
     const dt = Math.min(0.1, (t - last) / 1000); last = t;
+    if (picking) { drawPickCards(t); requestAnimationFrame(frame); return; }
     if (game) updateGame(dt);
     else {
       acc += dt * S.speed;
       if (acc >= 0.25) { simulate(acc); acc = 0; updatePanel(); }
     }
-    if (flashT > 0) flashT -= dt;
+    for (const sp of sparks) { sp.x += sp.vx * dt; sp.y += sp.vy * dt; sp.vy += 30 * dt; sp.life -= dt; }
+    for (let i = sparks.length - 1; i >= 0; i--) if (sparks[i].life <= 0) sparks.splice(i, 1);
+    if (celebrate && !game && $("modal").hidden) { showModal(celebrate.title, celebrate.text); celebrate = null; }
     if (jumpT > 0) jumpT -= dt;
     if (react) { react.t -= dt; if (react.t <= 0) react = null; }
     for (const h of hearts) { h.y -= dt * 10; h.life -= dt; }
@@ -1057,13 +1393,19 @@ input#petName { font: inherit; padding: 6px 10px; border: 1px solid var(--line);
     requestAnimationFrame(frame);
   }
   updatePanel(); render();
+  if (picking) showPick();
   requestAnimationFrame(frame);
   addEventListener("pagehide", save);
   document.addEventListener("visibilitychange", () => {
     if (document.hidden) save();
-    else { if (!game) catchUp(S.savedAt); last = performance.now(); updatePanel(); }
+    else { if (!game && !picking) catchUp(S.savedAt); last = performance.now(); updatePanel(); }
   });
 
-  window.__mongle = { drawCat, drawEgg, faceFor, setCtx(c) { g = c; }, get state() { return S; }, get game() { return game; }, get dex() { return dex; }, simulate, act, decideForm };
+
+  // 홈 화면 앱(PWA): 웹 주소(https/localhost)에서 열렸을 때만 오프라인용 서비스 워커 등록
+  if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost" || location.hostname === "127.0.0.1")) {
+    addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+  }
+  window.__mongle = { SPECIES, get picking() { return picking; }, drawCat, drawEgg, faceFor, setCtx(c) { g = c; }, get state() { return S; }, get game() { return game; }, get dex() { return dex; }, simulate, act, decideForm };
 })();
 </script>
