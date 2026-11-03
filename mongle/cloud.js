@@ -4,10 +4,10 @@ import { initializeApp } from "./vendor/firebase/firebase-app.js";
 import {
   getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult,
   createUserWithEmailAndPassword, signInWithEmailAndPassword, sendPasswordResetEmail, signOut, connectAuthEmulator,
-  signInWithCustomToken, updateProfile,
+  signInWithCustomToken, updateProfile, deleteUser,
 } from "./vendor/firebase/firebase-auth.js";
 import {
-  getFirestore, doc, getDoc, setDoc, serverTimestamp, connectFirestoreEmulator,
+  getFirestore, doc, getDoc, setDoc, deleteDoc, serverTimestamp, connectFirestoreEmulator,
 } from "./vendor/firebase/firebase-firestore-lite.js";
 
 const ERRORS = {
@@ -26,6 +26,7 @@ const ERRORS = {
   "auth/cancelled-popup-request": "로그인 창이 닫혔어요.",
   "auth/unauthorized-domain": "이 주소는 Firebase에 승인된 도메인이 아니에요. 콘솔에서 도메인을 추가해 주세요.",
   "auth/operation-not-allowed": "이 로그인 방식이 Firebase 콘솔에서 꺼져 있어요.",
+  "auth/requires-recent-login": "보안을 위해 로그아웃 후 다시 로그인한 다음, 5분 안에 계정 삭제를 눌러 주세요.",
   "permission-denied": "저장 권한이 없어요. Firestore 보안 규칙을 확인해 주세요.",
   "unavailable": "인터넷 연결을 확인해 주세요.",
 };
@@ -73,6 +74,16 @@ export function createCloud(config, { emulator = null } = {}) {
     emailSignUp: (email, pw) => createUserWithEmailAndPassword(auth, email, pw),
     resetPassword: (email) => sendPasswordResetEmail(auth, email),
     logout: () => signOut(auth),
+    // 계정 삭제: 최근(4분 이내) 로그인한 경우에만. 클라우드 기록을 먼저 지우고 계정을 지운다.
+    async deleteAccount() {
+      const u = auth.currentUser;
+      const { authTime } = await u.getIdTokenResult();
+      if (Date.now() - new Date(authTime).getTime() > 4 * 60 * 1000) {
+        const e = new Error("recent login required"); e.code = "auth/requires-recent-login"; throw e;
+      }
+      await deleteDoc(doc(db, "users", u.uid));
+      await deleteUser(u);
+    },
     async load() {
       const snap = await getDoc(userDoc());
       if (!snap.exists()) return null;

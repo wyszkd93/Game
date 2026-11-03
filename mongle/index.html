@@ -3,7 +3,20 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="description" content="아기 고양이 몽글이를 돌보며 키우는 도트 가상 펫 게임">
+<meta name="description" content="고양이·강아지·곰·여우·판다·너구리 중 친구를 골라 알에서부터 돌보는 도트 가상 펫 게임">
+<link rel="canonical" href="https://mongle-pet.netlify.app/">
+<!-- 링크 미리보기 (카카오톡·페이스북·X 등) -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="몽글이 키우기">
+<meta property="og:title" content="몽글이 키우기">
+<meta property="og:description" content="알에서 깨어난 도트 펫을 돌봐요. 설치 없이 바로, 카카오 로그인으로 어디서나 이어 하기">
+<meta property="og:image" content="https://mongle-pet.netlify.app/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="몽글이 키우기: 방 안의 도트 고양이, 여우, 판다">
+<meta property="og:url" content="https://mongle-pet.netlify.app/">
+<meta property="og:locale" content="ko_KR">
+<meta name="twitter:card" content="summary_large_image">
 <meta name="theme-color" content="#1b2236">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -53,6 +66,11 @@ button:focus-visible, input:focus-visible { outline: 2px solid var(--mint); outl
   padding-block: max(10px, env(safe-area-inset-top, 0px)) calc(88px + env(safe-area-inset-bottom, 0px));
   display: grid; gap: 14px; align-content: start;
 }
+
+/* grid children may shrink below their content width (prevents sideways scroll on narrow phones) */
+.app { grid-template-columns: minmax(0, 1fr); }
+.app > main, .page, .pick-card, .pick-card canvas { min-width: 0; }
+.page { grid-template-columns: minmax(0, 1fr); }
 
 /* pixel frame: hard border, inner highlight, offset block shadow */
 .frame {
@@ -182,6 +200,7 @@ input#petName { font: inherit; padding: 6px 10px; border: 2px solid var(--edge);
 .pick-name label { color: var(--muted); }
 .pick-name input { flex: 1; min-width: 0; font: inherit; padding: 6px 10px; border: 2px solid var(--edge); background: var(--bg); color: var(--fg); }
 .btn.big { padding: 14px; font-size: 1rem; font-weight: 700; }
+#pickLogin { white-space: normal; line-height: 1.4; }
 body.picking .tabbar, body.picking .coins { display: none; }
 
 /* bottom tab bar */
@@ -289,8 +308,10 @@ body.picking .tabbar, body.picking .coins { display: none; }
         <div id="acctIn" hidden style="display:grid;gap:10px">
           <p class="help" id="acctWho"></p>
           <div class="row"><button class="btn primary" id="cloudSaveNow">지금 저장</button><button class="btn" id="logoutBtn">로그아웃</button></div>
+          <div class="row"><button class="btn danger" id="delAcct">계정 삭제</button><button class="btn danger" id="delAcctYes" hidden>정말 삭제</button><button class="btn" id="delAcctNo" hidden>취소</button></div>
         </div>
         <p class="help" id="acctMsg" role="status"></p>
+        <p class="help"><a href="privacy.html" style="color:var(--muted)">개인정보처리방침</a></p>
         <div class="row" id="acctBackRow" hidden><button class="btn" id="acctBack">◀ 친구 고르기로 돌아가기</button></div>
       </div>
       <div class="frame settings">
@@ -1434,6 +1455,15 @@ body.picking .tabbar, body.picking .coins { display: none; }
     tryAuth(() => cloud.resetPassword(e), "비밀번호 재설정 메일을 보냈어요. 메일함을 확인해 주세요.");
   });
   $("cloudSaveNow").addEventListener("click", () => pushCloud("manual"));
+  // 계정 삭제 (Google Play 정책: 앱 안에서 계정과 데이터를 지울 수 있어야 함)
+  const delBtns = (confirming) => { $("delAcct").hidden = confirming; $("delAcctYes").hidden = !confirming; $("delAcctNo").hidden = !confirming; };
+  $("delAcct").addEventListener("click", () => { delBtns(true); acctMsg("계정과 클라우드 기록이 지워지고 되돌릴 수 없어요. 이 기기의 기록은 남아요."); });
+  $("delAcctNo").addEventListener("click", () => { delBtns(false); acctMsg(""); });
+  $("delAcctYes").addEventListener("click", async () => {
+    delBtns(false); acctMsg("삭제하는 중…");
+    try { await cloud.deleteAccount(); lastPushed = 0; acctMsg("계정과 클라우드 기록을 삭제했어요. 이 기기의 기록은 그대로 있어요."); }
+    catch (e) { acctMsg(friendly(e)); }
+  });
   // 새 기기: 친구를 고르기 전에 로그인해서 예전 기록 불러오기
   $("pickLogin").addEventListener("click", () => {
     document.querySelectorAll(".page").forEach(pg => { pg.hidden = pg.dataset.page !== "settings"; });
@@ -1622,6 +1652,6 @@ body.picking .tabbar, body.picking .coins { display: none; }
   if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost" || location.hostname === "127.0.0.1")) {
     addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
   }
-  window.__mongle = { idleNow() { lastInput = -1e12; }, get cloudUser() { return cloudUser; }, get lastPushed() { return lastPushed; }, pushCloud, SPECIES, get picking() { return picking; }, drawCat, drawEgg, faceFor, setCtx(c) { g = c; }, get state() { return S; }, get game() { return game; }, get dex() { return dex; }, simulate, act, decideForm };
+  window.__mongle = { drawRoom, idleNow() { lastInput = -1e12; }, get cloudUser() { return cloudUser; }, get lastPushed() { return lastPushed; }, pushCloud, SPECIES, get picking() { return picking; }, drawCat, drawEgg, faceFor, setCtx(c) { g = c; }, get state() { return S; }, get game() { return game; }, get dex() { return dex; }, simulate, act, decideForm };
 })();
 </script>

@@ -1,6 +1,6 @@
 // 몽글이 오프라인 지원: 게임 파일은 설치 때 저장, 페이지는 네트워크 우선(업데이트 반영),
 // 나머지(폰트·아이콘)는 캐시 우선. 게임 파일을 바꾸면 VERSION을 올린다.
-const VERSION = "mongle-v9";
+const VERSION = "mongle-v10";
 const CORE = ["./", "./index.html", "./manifest.webmanifest",
   "./icons/icon-192.png", "./icons/icon-512.png", "./icons/icon-maskable-512.png",
   "./icons/apple-touch-icon.png", "./icons/favicon-32.png",
@@ -31,9 +31,12 @@ self.addEventListener("fetch", (e) => {
     return;
   }
   if (req.mode === "navigate") {
+    // 페이지마다 자기 주소로 저장 (게임 화면은 ./index.html). 오프라인이면 저장본, 없으면 게임 화면
+    const isApp = url.pathname === "/" || url.pathname.endsWith("/index.html") || url.pathname.endsWith("/");
+    const key = isApp ? "./index.html" : url.pathname;
     e.respondWith(fetch(req)
-      .then((res) => { const copy = res.clone(); caches.open(VERSION).then((c) => c.put("./index.html", copy)); return res; })
-      .catch(() => caches.match("./index.html")));
+      .then((res) => { if (res.ok) { const copy = res.clone(); caches.open(VERSION).then((c) => c.put(key, copy)); } return res; })
+      .catch(() => caches.match(key).then((hit) => hit || caches.match("./index.html"))));
     return;
   }
   e.respondWith(caches.match(req).then((hit) => hit || fetch(req).then((res) => {

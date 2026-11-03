@@ -117,3 +117,11 @@ Firebase 콘솔 → **프로젝트 설정 → 서비스 계정 → 새 비공개
 | `FIREBASE_PRIVATE_KEY` | 서비스 계정 JSON의 `private_key` 전체 (`-----BEGIN PRIVATE KEY-----`부터 `-----END PRIVATE KEY-----\n`까지) |
 
 환경 변수를 바꾼 뒤에는 **Deploys → Trigger deploy → Deploy site**로 다시 배포해야 반영됩니다.
+
+## 링크 미리보기 · 아이콘 · 안드로이드
+
+- 링크 미리보기: `mongle/og.png`(1200×630)와 Open Graph 태그. 카카오톡은 미리보기를 오래 캐시하므로, 바꾼 뒤에는 카카오 디벨로퍼스의 **공유 디버거**(https://developers.kakao.com/tool/debugger/sharing)에 주소를 넣고 **캐시 초기화**를 누릅니다.
+- 앱 아이콘: `mongle/icons/` (남색 테마, 마스크형 포함)
+- 개인정보처리방침: `mongle/privacy.html` → `https://mongle-pet.netlify.app/privacy.html` (**문의 이메일 입력 필요**)
+- 계정 삭제: 설정 → 계정 · 클라우드 저장 → 계정 삭제 (Google Play 정책 대응)
+- Google Play 출시: [ANDROID.md](ANDROID.md), 스토어 문구와 그래픽: `store/`
