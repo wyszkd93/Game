@@ -16,7 +16,7 @@ window.MONGLE_FIREBASE = {
 // 카카오 로그인: 카카오 디벨로퍼스 → 내 애플리케이션 → 앱 키 → REST API 키.
 // (로그인 주소에 그대로 드러나는 값이라 공개돼도 된다. Client Secret은 여기 넣지 말고 Netlify 환경 변수에만 넣는다.)
 // null이면 '카카오로 로그인' 버튼이 숨겨진다.
-window.MONGLE_KAKAO = null; // 예: { restKey: "0123456789abcdef0123456789abcdef" }
+window.MONGLE_KAKAO = { restKey: "cde07b8e60609c5fc00e83e1c36997f4" };
 /* 예시
 window.MONGLE_FIREBASE = {
   apiKey: "AIza...",

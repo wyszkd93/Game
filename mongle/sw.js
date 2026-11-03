@@ -1,6 +1,6 @@
 // 몽글이 오프라인 지원: 게임 파일은 설치 때 저장, 페이지는 네트워크 우선(업데이트 반영),
 // 나머지(폰트·아이콘)는 캐시 우선. 게임 파일을 바꾸면 VERSION을 올린다.
-const VERSION = "mongle-v7";
+const VERSION = "mongle-v8";
 const CORE = ["./", "./index.html", "./manifest.webmanifest",
   "./icons/icon-192.png", "./icons/icon-512.png", "./icons/icon-maskable-512.png",
   "./icons/apple-touch-icon.png", "./icons/favicon-32.png",
