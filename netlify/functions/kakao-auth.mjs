@@ -47,13 +47,26 @@ export default async function handler(req) {
   });
   const tok = await tokRes.json().catch(() => ({}));
   if (!tokRes.ok || !tok.access_token) {
-    return json(401, { error: "카카오 인증에 실패했어요.", detail: tok.error_description || tok.error || tokRes.status });
+    // 원인 확인용: Netlify → Logs → Functions 에 남는다 (코드·키 값은 남기지 않음)
+    console.log("kakao token error", tokRes.status, tok.error, tok.error_code, tok.error_description, "secret set:", !!secret);
+    const hint = tok.error_code === "KOE010" || /client_secret|client credentials/i.test(tok.error_description || "")
+      ? " 카카오 앱의 Client Secret이 켜져 있다면 Netlify 환경 변수 KAKAO_CLIENT_SECRET을 넣어 주세요."
+      : tok.error_code === "KOE006" || /redirect/i.test(tok.error_description || "")
+        ? " 카카오 앱의 Redirect URI가 https://mongle-pet.netlify.app/ 인지 확인해 주세요."
+        : tok.error_code === "KOE101" || /client_id|app key/i.test(tok.error_description || "")
+          ? " Netlify의 KAKAO_REST_KEY가 카카오 REST API 키와 같은지 확인해 주세요."
+          : "";
+    return json(401, { error: "카카오 인증에 실패했어요." + hint,
+      detail: [tok.error_code, tok.error, tok.error_description].filter(Boolean).join(" / ") || String(tokRes.status) });
   }
 
   // 2) 카카오 사용자 정보 (회원번호, 닉네임)
   const meRes = await fetch("https://kapi.kakao.com/v2/user/me", { headers: { authorization: `Bearer ${tok.access_token}` } });
   const me = await meRes.json().catch(() => ({}));
-  if (!meRes.ok || !me.id) return json(401, { error: "카카오 사용자 정보를 가져오지 못했어요." });
+  if (!meRes.ok || !me.id) {
+    console.log("kakao user error", meRes.status, me.code, me.msg);
+    return json(401, { error: "카카오 사용자 정보를 가져오지 못했어요.", detail: [me.code, me.msg].filter(Boolean).join(" / ") });
+  }
   const nickname = (me.kakao_account && me.kakao_account.profile && me.kakao_account.profile.nickname)
     || (me.properties && me.properties.nickname) || "";
 
