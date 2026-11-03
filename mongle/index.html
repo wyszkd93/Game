@@ -158,6 +158,12 @@ canvas#lcd { display: block; width: 100%; aspect-ratio: 4 / 3; max-width: 100%; 
 .settings { padding: 12px; display: grid; gap: 12px; }
 .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .row label { color: var(--muted); min-width: 3em; }
+#modalText { white-space: pre-line; }
+.modal .row { justify-content: center; }
+.acct-head { gap: 8px; }
+.acct-head .sub { margin-left: auto; color: var(--muted); font-size: .8rem; }
+.settings input[type=email], .settings input[type=password] { font: inherit; padding: 6px 10px; border: 2px solid var(--edge); background: var(--bg); color: var(--fg); min-width: 0; flex: 1 1 9em; }
+#cloudDot { width: 18px; height: 18px; }
 input#petName { font: inherit; padding: 6px 10px; border: 2px solid var(--edge); background: var(--bg); color: var(--fg); min-width: 0; width: 10em; }
 .help { color: var(--muted); font-size: .8rem; margin: 0; }
 
@@ -205,7 +211,7 @@ body.picking .tabbar, body.picking .coins { display: none; }
 <div class="app">
   <header class="topbar">
     <div class="brand"><b id="title">몽글이</b><span id="today"></span></div>
-    <div class="coins" aria-label="코인"><img class="ico" data-icon="coin" alt=""><span id="fCoins">0</span></div>
+    <div class="coins" aria-label="코인"><img class="ico" id="cloudDot" data-icon="cloud" alt="클라우드 저장 켜짐" title="클라우드 저장 중" hidden><img class="ico" data-icon="coin" alt=""><span id="fCoins">0</span></div>
   </header>
 
   <main>
@@ -215,6 +221,7 @@ body.picking .tabbar, body.picking .coins { display: none; }
       <div class="pick-grid" id="pickGrid" role="radiogroup" aria-label="친구 종류"></div>
       <div class="frame pick-name"><label for="pickName">이름</label><input id="pickName" maxlength="8" placeholder="예: 몽글이" autocomplete="off"></div>
       <button class="btn primary big" id="pickGo">▶ 이 친구랑 시작하기</button>
+      <button class="btn" id="pickLogin" hidden>이미 키우던 친구가 있나요? 로그인해서 이어 하기</button>
     </section>
 
     <section class="page" id="page-home" data-page="home" style="display:grid;gap:14px">
@@ -269,6 +276,21 @@ body.picking .tabbar, body.picking .coins { display: none; }
 
     <section class="page" id="page-settings" data-page="settings" hidden style="display:grid;gap:14px">
       <div class="page-head"><img class="ico" data-icon="gear" alt=""><h1>설정</h1></div>
+      <div class="frame settings" id="account" hidden>
+        <div class="row acct-head"><img class="ico" data-icon="cloud" alt=""><b>계정 · 클라우드 저장</b></div>
+        <div id="acctOut" style="display:grid;gap:10px">
+          <p class="help">로그인하면 기록이 클라우드에 저장돼서 다른 기기에서도 이어서 키울 수 있어요.</p>
+          <div class="row"><button class="btn primary" id="gLogin">Google로 로그인</button></div>
+          <div class="row"><input id="acctEmail" type="email" placeholder="이메일" autocomplete="email"><input id="acctPw" type="password" placeholder="비밀번호 (6자 이상)" autocomplete="current-password"></div>
+          <div class="row"><button class="btn" id="emailIn">이메일로 로그인</button><button class="btn" id="emailUp">가입하기</button><button class="btn" id="pwReset">비밀번호 찾기</button></div>
+        </div>
+        <div id="acctIn" hidden style="display:grid;gap:10px">
+          <p class="help" id="acctWho"></p>
+          <div class="row"><button class="btn primary" id="cloudSaveNow">지금 저장</button><button class="btn" id="logoutBtn">로그아웃</button></div>
+        </div>
+        <p class="help" id="acctMsg" role="status"></p>
+        <div class="row" id="acctBackRow" hidden><button class="btn" id="acctBack">◀ 친구 고르기로 돌아가기</button></div>
+      </div>
       <div class="frame settings">
         <div class="row"><label for="petName">이름</label><input id="petName" maxlength="8" value="몽글이"></div>
         <div class="row"><label>시간</label><button class="btn" id="speedBtn">시간 ×1</button><label>소리</label><button class="btn" id="soundBtn">소리 켬</button></div>
@@ -298,10 +320,11 @@ body.picking .tabbar, body.picking .coins { display: none; }
     <canvas id="modalCv" width="64" height="48" aria-hidden="true"></canvas>
     <h2 id="modalTitle"></h2>
     <p id="modalText"></p>
-    <button class="btn primary" id="modalOk">확인</button>
+    <div class="row"><button class="btn primary" id="modalOk">확인</button><button class="btn" id="modalAlt" hidden></button></div>
   </div>
 </div>
 
+<script src="firebase-config.js"></script>
 <script>
 (() => {
   const SAVE_KEY = "mongle-pocket-v1";
@@ -365,7 +388,7 @@ body.picking .tabbar, body.picking .coins { display: none; }
       sick: false, sleeping: false, poops: 0, poopTimer: -1, dead: false, misses: 0,
       zeroFlags: {}, stage: "egg", form: null, speed: 1, savedAt: Date.now(), log: [],
       coins: 3, hats: [], hat: null, wish: null, wishCooldown: 45, games: 0, best: 0,
-      happySum: 0, happyN: 0, sound: true, species: null,
+      happySum: 0, happyN: 0, sound: true, species: null, pid: null,
     };
   }
 
@@ -386,6 +409,8 @@ body.picking .tabbar, body.picking .coins { display: none; }
   let S = Object.assign(fresh(), loaded || {});
   let dex = loadDex().map(k => k.includes(":") ? k : "cat:" + k); // 예전 도감은 고양이 기록
   if (loaded && !S.species) S.species = "cat";                      // 예전 저장은 고양이로 이어감
+  const newPid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+  if (S.species && !S.pid) S.pid = newPid();                         // 기기 간 같은 펫인지 알아보는 id
   let picking = !S.species;                                         // 첫 실행: 친구 고르기 화면
   let game = null;          // 별 받기 상태
   let toastTimer = 0;
@@ -1160,6 +1185,7 @@ body.picking .tabbar, body.picking .coins { display: none; }
     gear:  [".....kk.....", "..k.kssk.k..", ".ksksssskck.", "..kssssssk..", "kkssskkssskk", "ksssk..ksssk", "ksssk..ksssk", "kkssskkssskk", "..kssssssk..", ".kcksssskck.", "..k.kssk.k..", ".....kk....."],
     cake:  [".....y......", ".....r......", ".....k......", "..kkkkkkkk..", ".kwwwwwwwwk.", ".kpwpwpwpwk.", ".kppppppppk.", ".kccccccccck", ".kpppppppppk", ".kccccccccck", ".kkkkkkkkkkk", "............"],
     ribbon:["............", "............", ".kk......kk.", "kppk.kk.kppk", "kpppkrrkpppk", "kpwprrrrppk.", "kpppkrrkpppk", "kppk.kk.kppk", ".kk.krrk.kk.", "...krk.krk..", "...kk...kk..", "............"],
+    cloud: ["............", "............", "....kkkk....", "...kwwwwk...", "..kwwwwwwkk.", ".kkwwwwwwwwk", "kwwwwwwwwwwk", "kwwlwwwwwwwk", "kwwwwwwwwwlk", ".kkkkkkkkkk.", "............", "............"],
     crown: ["............", "............", ".k...k...k..", "kyk.kyk.kyk.", "kyyk.y.kyyk.", "kyyyyyyyyyk.", "kyryyyyyryk.", "kyyyybyyyyk.", "kyyyyyyyyyk.", "kkkkkkkkkkk.", "............", "............"],
   };
   const ICON_URL = {};
@@ -1203,6 +1229,7 @@ body.picking .tabbar, body.picking .coins { display: none; }
   }
   function showPick(keep) {
     picking = true; pickKeep = keep || null;
+    if (typeof renderAccount === "function" && cloud !== undefined) renderAccount();
     document.body.classList.add("picking");
     document.querySelectorAll(".page").forEach(pg => { pg.hidden = pg.dataset.page !== "pick"; });
     $("pickName").value = keep && keep.name ? keep.name : "";
@@ -1215,11 +1242,12 @@ body.picking .tabbar, body.picking .coins { display: none; }
   });
   $("pickGo").addEventListener("click", () => {
     const name = $("pickName").value.trim().slice(0, 8) || "몽글이";
-    S = Object.assign(fresh(name), pickKeep || {}, { name, species: pickSel });
+    S = Object.assign(fresh(name), pickKeep || {}, { name, species: pickSel, pid: newPid() });
     S.log = []; log(`${speciesOf(pickSel).name} 알을 받았어요. 이름은 ${josa(name, "으로", "로")} 지었어요.`);
     picking = false; document.body.classList.remove("picking");
     save(); renderDex(); showTab("home"); updatePanel(); sfx.good();
     toast("알이 곧 깨어나요!");
+    pushCloud();
   });
 
   // ---- celebration: sparkles + popup ----
@@ -1239,7 +1267,121 @@ body.picking .tabbar, body.picking .coins { display: none; }
     g = keep;
     $("modal").hidden = false; $("modalOk").focus();
   }
-  $("modalOk").addEventListener("click", () => { $("modal").hidden = true; sfx.tap(); });
+  let modalResolve = null;
+  function closeModal(answer) {
+    $("modal").hidden = true; sfx.tap();
+    $("modalOk").textContent = "확인"; $("modalAlt").hidden = true;
+    const r = modalResolve; modalResolve = null; if (r) r(answer);
+  }
+  $("modalOk").addEventListener("click", () => closeModal("ok"));
+  $("modalAlt").addEventListener("click", () => closeModal("alt"));
+  function askChoice(title, text, okLabel, altLabel) {
+    return new Promise(res => {
+      showModal(title, text);
+      $("modalOk").textContent = okLabel; $("modalAlt").textContent = altLabel; $("modalAlt").hidden = false;
+      modalResolve = res;
+    });
+  }
+
+  // ---- 클라우드 저장 (Firebase 로그인 + Firestore) ----
+  const CLOUD_EVERY = 120; // 열려 있는 동안 2분마다 저장(쓰기 횟수 절약)
+  let cloud = null, cloudUser = null, cloudAcc = 0, cloudBusy = false, lastPushed = 0, cloudLoadedFor = null;
+  let friendly = (e) => (e && e.message) || "알 수 없는 오류가 났어요.";
+  const emuParam = /[?&]emulator=1/.test(location.search) && /^(localhost|127\.0\.0\.1)$/.test(location.hostname);
+  const acctMsg = (m) => { $("acctMsg").textContent = m || ""; };
+  function renderAccount() {
+    $("account").hidden = !cloud;
+    $("pickLogin").hidden = !cloud || !!cloudUser;
+    $("acctBackRow").hidden = !picking;
+    $("acctOut").hidden = !!cloudUser; $("acctIn").hidden = !cloudUser;
+    $("cloudDot").hidden = !cloudUser;
+    if (cloudUser) {
+      const when = lastPushed ? ` 마지막 저장 ${new Date(lastPushed).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}` : "";
+      $("acctWho").textContent = `${cloudUser.email || "Google 계정"}으로 로그인했어요.${when}`;
+    }
+  }
+  const stageLabel = (x) => x.stage === "adult" && x.form ? formName(x.form, x.species) : (STAGES.find(st => st.id === x.stage) || STAGES[0]).name;
+  const summary = (x) => `${x.name} (${speciesOf(x.species).name} · ${stageLabel(x)} · 코인 ${x.coins})`;
+  async function startCloud() {
+    if (!window.MONGLE_FIREBASE) return;
+    try {
+      const mod = await import("./cloud.js");
+      friendly = mod.friendlyError;
+      cloud = mod.createCloud(window.MONGLE_FIREBASE,
+        emuParam ? { emulator: { host: location.hostname, authPort: 9099, firestorePort: 8080 } } : {});
+    } catch (e) { cloud = null; return; } // 오프라인 등: 이 기기 저장만 사용
+    renderAccount();
+    cloud.onUser(async (u) => {
+      cloudUser = u; renderAccount();
+      if (u && cloudLoadedFor !== u.uid) { cloudLoadedFor = u.uid; acctMsg(""); await syncOnLogin(); }
+      if (!u) cloudLoadedFor = null;
+    });
+  }
+  async function syncOnLogin() {
+    let remote;
+    try { remote = await cloud.load(); } catch (e) { acctMsg("클라우드 기록을 불러오지 못했어요. " + friendly(e)); return; }
+    if (remote) { // 도감은 양쪽을 합친다
+      const before = dex.length; dex = [...new Set([...dex, ...remote.dex])];
+      if (dex.length !== before) { saveDex(); renderDex(); }
+    }
+    const r = remote && remote.save;
+    const localReal = !picking && !!S.species;
+    if (!r || !r.species) {
+      if (localReal) await pushCloud("first");
+      else { showPick(pickKeep); toast("저장된 기록이 없어요. 친구를 골라 시작해 주세요."); }
+      return;
+    }
+    if (!localReal) return applyRemote(r, remote.savedAt, "클라우드 기록을 불러왔어요!");
+    if (r.pid && r.pid === S.pid) { // 같은 펫이면 더 최근 기록을 쓴다
+      if ((remote.savedAt || 0) > (S.savedAt || 0)) return applyRemote(r, remote.savedAt, "다른 기기에서 키운 기록을 불러왔어요.");
+      return pushCloud();
+    }
+    const ans = await askChoice("어떤 기록으로 이어 갈까요?",
+      `클라우드: ${summary(r)}\n이 기기: ${summary(S)}\n고르지 않은 기록은 지워져요. 도감은 둘 다 남아요.`,
+      "클라우드 기록", "이 기기 기록");
+    if (ans === "ok") applyRemote(r, remote.savedAt, "클라우드 기록을 불러왔어요!");
+    else await pushCloud("manual");
+  }
+  function applyRemote(r, savedAt, msg) {
+    if (game) finishGame(true);
+    S = Object.assign(fresh(), r);
+    if (!S.pid) S.pid = newPid();
+    picking = false; document.body.classList.remove("picking");
+    catchUp(savedAt || S.savedAt); // 마지막 저장 이후 흐른 시간 반영
+    save(); renderDex(); renderShop(); showTab("home"); updatePanel();
+    lastPushed = Date.now(); renderAccount(); toast(msg);
+  }
+  async function pushCloud(reason) {
+    if (!cloud || !cloudUser || picking || cloudBusy) return;
+    cloudBusy = true;
+    try {
+      save(); await cloud.save(S, dex);
+      lastPushed = Date.now(); cloudAcc = 0;
+      if (reason === "manual") acctMsg("클라우드에 저장했어요.");
+      if (reason === "first") toast("이 기기 기록을 클라우드에 저장했어요.");
+    } catch (e) { acctMsg("저장하지 못했어요. " + friendly(e)); }
+    finally { cloudBusy = false; renderAccount(); }
+  }
+  const creds = () => [$("acctEmail").value.trim(), $("acctPw").value];
+  const tryAuth = async (fn, okMsg) => { acctMsg("잠시만요…"); try { await fn(); acctMsg(okMsg || ""); } catch (e) { acctMsg(friendly(e)); } };
+  $("gLogin").addEventListener("click", () => tryAuth(() => cloud.google()));
+  $("emailIn").addEventListener("click", () => { const [e, pw] = creds(); tryAuth(() => cloud.emailSignIn(e, pw)); });
+  $("emailUp").addEventListener("click", () => { const [e, pw] = creds(); tryAuth(() => cloud.emailSignUp(e, pw), "가입했어요!"); });
+  $("pwReset").addEventListener("click", () => {
+    const [e] = creds(); if (!e) return acctMsg("위에 이메일을 먼저 입력해 주세요.");
+    tryAuth(() => cloud.resetPassword(e), "비밀번호 재설정 메일을 보냈어요. 메일함을 확인해 주세요.");
+  });
+  $("cloudSaveNow").addEventListener("click", () => pushCloud("manual"));
+  // 새 기기: 친구를 고르기 전에 로그인해서 예전 기록 불러오기
+  $("pickLogin").addEventListener("click", () => {
+    document.querySelectorAll(".page").forEach(pg => { pg.hidden = pg.dataset.page !== "settings"; });
+    renderAccount(); scrollTo(0, 0); $("acctEmail").focus();
+  });
+  $("acctBack").addEventListener("click", () => showPick(pickKeep));
+  $("logoutBtn").addEventListener("click", async () => {
+    await pushCloud(); await cloud.logout(); $("acctPw").value = "";
+    acctMsg("로그아웃했어요. 이 기기의 기록은 그대로 남아 있어요.");
+  });
 
   $("today").textContent = new Date().toLocaleDateString("ko-KR", { month: "long", day: "numeric", weekday: "short" });
 
@@ -1375,6 +1517,7 @@ body.picking .tabbar, body.picking .coins { display: none; }
   function frame(t) {
     const dt = Math.min(0.1, (t - last) / 1000); last = t;
     if (picking) { drawPickCards(t); requestAnimationFrame(frame); return; }
+    if (cloudUser) { cloudAcc += dt; if (cloudAcc > CLOUD_EVERY) pushCloud(); }
     if (game) updateGame(dt);
     else {
       acc += dt * S.speed;
@@ -1395,9 +1538,10 @@ body.picking .tabbar, body.picking .coins { display: none; }
   updatePanel(); render();
   if (picking) showPick();
   requestAnimationFrame(frame);
+  startCloud();
   addEventListener("pagehide", save);
   document.addEventListener("visibilitychange", () => {
-    if (document.hidden) save();
+    if (document.hidden) { save(); pushCloud(); }
     else { if (!game && !picking) catchUp(S.savedAt); last = performance.now(); updatePanel(); }
   });
 
@@ -1406,6 +1550,6 @@ body.picking .tabbar, body.picking .coins { display: none; }
   if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost" || location.hostname === "127.0.0.1")) {
     addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
   }
-  window.__mongle = { SPECIES, get picking() { return picking; }, drawCat, drawEgg, faceFor, setCtx(c) { g = c; }, get state() { return S; }, get game() { return game; }, get dex() { return dex; }, simulate, act, decideForm };
+  window.__mongle = { get cloudUser() { return cloudUser; }, get lastPushed() { return lastPushed; }, pushCloud, SPECIES, get picking() { return picking; }, drawCat, drawEgg, faceFor, setCtx(c) { g = c; }, get state() { return S; }, get game() { return game; }, get dex() { return dex; }, simulate, act, decideForm };
 })();
 </script>
