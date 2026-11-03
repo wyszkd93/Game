@@ -25,6 +25,16 @@
 2. **Build and deployment → Source**를 `Deploy from a branch`로, **Branch**를 `main` / `/ (root)`로 두고 **Save**
 3. 1~2분 뒤 `https://wyszkd93.github.io/Game/` 주소가 열림 (자동으로 `mongle/`로 이동)
 
+### 1-2. Netlify로 공유하기 (GitHub Pages 대신 또는 함께)
+
+`netlify.toml`이 들어 있어서 빌드 설정 없이 바로 배포됩니다. `mongle/` 폴더가 사이트 루트가 되어 `https://<사이트이름>.netlify.app/`에서 바로 게임이 열립니다.
+
+1. https://app.netlify.com 에 GitHub 계정으로 가입/로그인
+2. **Add new site → Import an existing project → GitHub** 선택, 이 리포(`wyszkd93/Game`) 접근 허용
+3. Branch는 `main`, Build command·Publish directory는 비워 두거나 자동으로 채워진 값(`mongle`) 그대로 두고 **Deploy**
+4. **Site configuration → Change site name**에서 주소를 원하는 이름으로 변경 (예: `mongle-pet`)
+5. 이후 `main`에 머지할 때마다 자동으로 다시 배포됨
+
 ### 2. 휴대폰에 설치
 
 - **아이폰(Safari)**: 주소를 연 뒤 공유 버튼 → **홈 화면에 추가**
