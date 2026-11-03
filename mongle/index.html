@@ -1,0 +1,566 @@
+<title>몽글이 키우기</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Do+Hyeon&family=Gowun+Dodum&display=swap">
+<style>
+/* Layout: a pastel handheld shell on the left, the care log and gauges on the right; stacks on phones. */
+:root {
+  --bg: #e9eef0;
+  --fg: #23302f;
+  --muted: #5d6b69;
+  --shell: #f3b6a6;
+  --shell-edge: #d98f7c;
+  --shell-ink: #5a2d24;
+  --lcd: #c4d3a2;
+  --lcd-ink: #2f3a1f;
+  --panel: #ffffff;
+  --line: #d3dcdc;
+  --accent: #2e7c76;
+  --good: #3a8a4a;
+  --warn: #c68a14;
+  --bad: #c2453a;
+  --font-display: "Do Hyeon", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  --font-body: "Gowun Dodum", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #161c1d; --fg: #e3ebea; --muted: #9aaaa8;
+    --shell: #a8665a; --shell-edge: #7d473e; --shell-ink: #fde7e1;
+    --lcd: #a9b98a; --lcd-ink: #232c16;
+    --panel: #1f2728; --line: #334040; --accent: #6cc3bb;
+    --good: #6fc27d; --warn: #e6b04a; --bad: #ec7a6f;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #161c1d; --fg: #e3ebea; --muted: #9aaaa8;
+  --shell: #a8665a; --shell-edge: #7d473e; --shell-ink: #fde7e1;
+  --lcd: #a9b98a; --lcd-ink: #232c16;
+  --panel: #1f2728; --line: #334040; --accent: #6cc3bb;
+  --good: #6fc27d; --warn: #e6b04a; --bad: #ec7a6f;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  background: var(--bg); color: var(--fg);
+  font-family: var(--font-body); font-size: 15px; line-height: 1.55;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 24px 40px;
+}
+.wrap { max-width: 960px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 380px) minmax(0, 1fr); gap: 28px; align-items: start; }
+@media (max-width: 760px) { .wrap { grid-template-columns: minmax(0, 1fr); } }
+h1, h2 { font-family: var(--font-display); font-weight: 400; margin: 0; text-wrap: balance; }
+h1 { font-size: 2rem; letter-spacing: .02em; }
+h2 { font-size: 1.2rem; }
+.sub { color: var(--muted); margin: 4px 0 0; }
+
+/* Device shell */
+.device {
+  background: var(--shell); border: 3px solid var(--shell-edge);
+  border-radius: 46% 46% 42% 42% / 38% 38% 30% 30%;
+  padding: 44px 30px 34px; color: var(--shell-ink);
+  box-shadow: inset 0 -10px 0 var(--shell-edge);
+  display: grid; gap: 16px; justify-items: center;
+}
+.brand { font-family: var(--font-display); font-size: 1.1rem; letter-spacing: .18em; }
+.screen-frame { background: var(--shell-edge); padding: 10px; border-radius: 14px; width: 100%; max-width: 300px; }
+canvas#lcd {
+  display: block; width: 100%; aspect-ratio: 4 / 3; max-width: 100%;
+  image-rendering: pixelated; background: var(--lcd); border-radius: 6px;
+}
+.actions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; width: 100%; max-width: 300px; }
+.actions button, .btn {
+  font-family: var(--font-display); font-size: 1.05rem;
+  border: 2px solid var(--shell-ink); background: var(--panel); color: var(--fg);
+  border-radius: 999px; padding: 8px 6px; cursor: pointer;
+  box-shadow: 0 3px 0 var(--shell-ink); transition: transform .06s, box-shadow .06s;
+}
+.actions button:active, .btn:active { transform: translateY(2px); box-shadow: 0 1px 0 var(--shell-ink); }
+.actions button:disabled { opacity: .45; cursor: not-allowed; }
+button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.toast { min-height: 1.6em; font-family: var(--font-display); font-size: 1.05rem; text-align: center; }
+
+/* Panel */
+.panel { display: grid; gap: 22px; min-width: 0; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px; display: grid; gap: 12px; min-width: 0; }
+.facts { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+@media (max-width: 460px) { .facts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.fact .k { font-size: .78rem; color: var(--muted); letter-spacing: .06em; }
+.fact .v { font-family: var(--font-display); font-size: 1.25rem; font-variant-numeric: tabular-nums; }
+.bars { display: grid; gap: 10px; }
+.bar { display: grid; grid-template-columns: 4.5em minmax(0, 1fr) 3em; gap: 10px; align-items: center; }
+.bar .track { height: 12px; background: var(--line); border-radius: 999px; overflow: hidden; }
+.bar .fill { height: 100%; width: 50%; background: var(--good); border-radius: 999px; transition: width .4s, background .4s; }
+.bar .num { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
+.status { display: flex; flex-wrap: wrap; gap: 6px; }
+.pill { font-size: .82rem; padding: 2px 10px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); }
+.pill.warn { border-color: var(--warn); color: var(--warn); }
+.pill.bad { border-color: var(--bad); color: var(--bad); }
+.pill.good { border-color: var(--good); color: var(--good); }
+.log { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; max-height: 210px; overflow-y: auto; }
+.log li { display: grid; grid-template-columns: 4.2em minmax(0, 1fr); gap: 8px; font-size: .92rem; }
+.log time { color: var(--muted); font-variant-numeric: tabular-nums; }
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.row label { color: var(--muted); }
+input#petName { font: inherit; padding: 6px 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--fg); min-width: 0; width: 10em; }
+.btn { font-size: .95rem; padding: 6px 14px; box-shadow: 0 2px 0 var(--muted); border-color: var(--muted); }
+.btn.danger { color: var(--bad); border-color: var(--bad); box-shadow: 0 2px 0 var(--bad); }
+.help { color: var(--muted); font-size: .9rem; margin: 0; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <section class="device" aria-label="몽글이 기기">
+    <div class="brand">MONGLE·POCKET</div>
+    <div class="screen-frame"><canvas id="lcd" width="64" height="48" aria-label="몽글이 화면"></canvas></div>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+    <div class="actions" id="actions">
+      <button id="aFeed" data-act="feed">밥</button>
+      <button id="aSnack" data-act="snack">간식</button>
+      <button id="aPlay" data-act="play">놀기</button>
+      <button id="aClean" data-act="clean">씻기</button>
+      <button id="aSleep" data-act="sleep">재우기</button>
+      <button id="aMed" data-act="med">약</button>
+    </div>
+    <div class="actions" id="gameKeys" hidden>
+      <button id="gLeft" data-guess="L">◀ 왼쪽</button>
+      <button id="gQuit" data-guess="Q">그만</button>
+      <button id="gRight" data-guess="R">오른쪽 ▶</button>
+    </div>
+  </section>
+
+  <section class="panel">
+    <header>
+      <h1 id="title">몽글이 키우기</h1>
+      <p class="sub">알에서 깨어난 몽글이를 어른이 될 때까지 돌봐 주세요. 창을 닫아도 시간은 흐릅니다(최대 4시간까지 반영).</p>
+    </header>
+
+    <div class="card">
+      <div class="facts">
+        <div class="fact"><div class="k">단계</div><div class="v" id="fStage">알</div></div>
+        <div class="fact"><div class="k">나이</div><div class="v" id="fAge">0분</div></div>
+        <div class="fact"><div class="k">몸무게</div><div class="v" id="fWeight">5g</div></div>
+        <div class="fact"><div class="k">돌봄 실수</div><div class="v" id="fMiss">0</div></div>
+      </div>
+      <div class="bars" id="bars"></div>
+      <div class="status" id="status"></div>
+    </div>
+
+    <div class="card">
+      <h2>돌봄 일지</h2>
+      <ul class="log" id="log"></ul>
+    </div>
+
+    <div class="card">
+      <h2>설정</h2>
+      <div class="row">
+        <label for="petName">이름</label>
+        <input id="petName" maxlength="8" value="몽글이">
+        <button class="btn" id="speedBtn">시간 ×1</button>
+        <button class="btn danger" id="resetBtn">처음부터</button>
+        <button class="btn danger" id="resetYes" hidden>정말 새로 시작</button>
+        <button class="btn" id="resetNo" hidden>취소</button>
+      </div>
+      <p class="help">밥은 배고픔, 놀기는 행복, 씻기는 청결, 재우기는 체력을 채웁니다. 똥을 오래 두거나 굶기면 병에 걸리고, 아픈 채로 두면 건강이 줄어듭니다. 시간 ×20으로 바꾸면 성장을 빨리 볼 수 있어요.</p>
+    </div>
+  </section>
+</div>
+
+<script>
+(() => {
+  const SAVE_KEY = "mongle-pocket-v1";
+  const STAGES = [
+    { id: "egg",   name: "알",     until: 20 },
+    { id: "baby",  name: "아기",   until: 240 },
+    { id: "child", name: "어린이", until: 900 },
+    { id: "teen",  name: "청소년", until: 2400 },
+    { id: "adult", name: "어른",   until: Infinity },
+  ];
+  const MAX_OFFLINE_SEC = 4 * 3600;
+
+  // 받침 유무에 따라 조사 선택: josa("몽글이", "이", "가") -> "몽글이가"
+  function josa(word, withB, withoutB) {
+    const c = word.charCodeAt(word.length - 1) - 0xac00;
+    if (c < 0 || c > 11171) return word + withoutB;
+    const jong = c % 28;
+    if (withB === "으로" && jong === 8) return word + "로"; // ㄹ 받침은 '로'
+    return word + (jong ? withB : withoutB);
+  }
+  const iga = (w) => josa(w, "이", "가");
+  const clamp = (v, lo = 0, hi = 100) => Math.max(lo, Math.min(hi, v));
+  const stageOf = (age) => STAGES.find(s => age < s.until);
+
+  function fresh(name = "몽글이") {
+    return {
+      name, age: 0, weight: 5, hunger: 80, happy: 80, clean: 100, energy: 90, health: 100,
+      sick: false, sleeping: false, poops: 0, poopTimer: -1, dead: false, misses: 0,
+      zeroFlags: {}, stage: "egg", speed: 1, savedAt: Date.now(), log: [],
+    };
+  }
+
+  let S = load() || fresh();
+  let play = null; // minigame state
+  let toastTimer = 0;
+
+  function load() {
+    try {
+      const raw = localStorage.getItem(SAVE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch { return null; }
+  }
+  function save() {
+    S.savedAt = Date.now();
+    try { localStorage.setItem(SAVE_KEY, JSON.stringify(S)); } catch {}
+  }
+
+  function stamp() {
+    const m = Math.floor(S.age / 60), s = Math.floor(S.age % 60);
+    return `${m}:${String(s).padStart(2, "0")}`;
+  }
+  function log(msg) {
+    S.log.unshift({ t: stamp(), msg });
+    S.log = S.log.slice(0, 60);
+  }
+  function toast(msg) {
+    const el = document.getElementById("toast");
+    el.textContent = msg;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => (el.textContent = ""), 2600);
+  }
+
+  // ---- simulation: one second of pet life ----
+  function step(sec) {
+    if (S.dead) return;
+    S.age += sec;
+    const st = stageOf(S.age);
+    if (st.id !== S.stage) {
+      const prev = S.stage;
+      S.stage = st.id;
+      if (prev === "egg") log(`${iga(S.name)} 알에서 깨어났어요!`);
+      else log(`${iga(S.name)} ${josa(st.name, "으로", "로")} 자랐어요.`);
+    }
+    if (S.stage === "egg") return;
+
+    if (S.sleeping) {
+      S.energy = clamp(S.energy + sec / 5);
+      S.hunger = clamp(S.hunger - sec / 60);
+      if (S.energy >= 100) { S.sleeping = false; log(`${iga(S.name)} 푹 자고 일어났어요.`); }
+    } else {
+      S.hunger = clamp(S.hunger - sec / 24);
+      S.happy = clamp(S.happy - sec / 30);
+      S.energy = clamp(S.energy - sec / 36);
+      S.clean = clamp(S.clean - sec / 45);
+      if (S.energy <= 0) { S.sleeping = true; log(`${iga(S.name)} 지쳐서 쓰러지듯 잠들었어요.`); }
+    }
+
+    // digestion
+    if (S.poopTimer > 0) {
+      S.poopTimer -= sec;
+      if (S.poopTimer <= 0) { addPoop(); S.poopTimer = -1; }
+    } else if (!S.sleeping && Math.random() < sec / 240) addPoop();
+
+    // sickness
+    if (!S.sick) {
+      let p = 0;
+      if (S.poops >= 3 || S.clean < 20) p += 0.01;
+      if (S.hunger < 10) p += 0.005;
+      if (Math.random() < p * sec) { S.sick = true; log(`${iga(S.name)} 아파요. 약이 필요해요.`); }
+    }
+
+    // care mistakes: each stat hitting zero counts once until it recovers
+    for (const k of ["hunger", "happy", "clean"]) {
+      if (S[k] <= 0 && !S.zeroFlags[k]) { S.zeroFlags[k] = true; S.misses++; }
+      if (S[k] > 20) S.zeroFlags[k] = false;
+    }
+
+    // health
+    let dh = 0;
+    if (S.sick) dh -= 0.15;
+    for (const k of ["hunger", "happy", "clean"]) if (S[k] <= 0) dh -= 0.1;
+    if (dh === 0) dh = 0.03;
+    S.health = clamp(S.health + dh * sec);
+    if (S.health <= 0) {
+      S.dead = true; S.sleeping = false;
+      log(`${iga(S.name)} 별이 되었어요. '처음부터'로 새 알을 받을 수 있어요.`);
+    }
+  }
+  function addPoop() {
+    if (S.poops < 4) { S.poops++; S.clean = clamp(S.clean - 15); }
+  }
+  function simulate(sec) {
+    while (sec >= 1) { step(1); sec -= 1; }
+    if (sec > 0) step(sec);
+  }
+
+  // ---- actions ----
+  const ACTIONS = {
+    feed() {
+      if (S.hunger >= 95) { S.happy = clamp(S.happy - 3); return "배불러서 고개를 돌려요."; }
+      S.hunger = clamp(S.hunger + 30); S.weight += 1;
+      if (S.poopTimer < 0) S.poopTimer = 40 + Math.random() * 60;
+      log("밥을 먹었어요."); return "냠냠, 맛있어요!";
+    },
+    snack() {
+      S.happy = clamp(S.happy + 15); S.hunger = clamp(S.hunger + 5); S.weight += 2;
+      if (S.weight > 30) { S.health = clamp(S.health - 4); log("간식을 너무 많이 먹었어요."); return "살이 쪄서 몸이 무거워요…"; }
+      log("간식을 먹었어요."); return "간식 최고!";
+    },
+    play() {
+      if (S.energy < 15) return "너무 졸려서 못 놀아요.";
+      play = { round: 0, wins: 0, dir: null, shown: 0, result: null };
+      document.getElementById("actions").hidden = true;
+      document.getElementById("gameKeys").hidden = false;
+      document.getElementById("gLeft").focus();
+      return "몽글이가 어느 쪽을 볼까요? (5판)";
+    },
+    clean() {
+      const had = S.poops;
+      S.poops = 0; S.clean = 100;
+      log(had ? `똥 ${had}개를 치우고 씻겼어요.` : "깨끗하게 씻겼어요.");
+      return "반짝반짝!";
+    },
+    sleep() {
+      if (S.sleeping) { S.sleeping = false; log("불을 켜서 깨웠어요."); S.happy = clamp(S.happy - 5); return "부스스… 일어났어요."; }
+      if (S.energy > 85) return "아직 안 졸려요.";
+      S.sleeping = true; log("불을 끄고 재웠어요."); return "쿨쿨…";
+    },
+    med() {
+      if (!S.sick) { S.happy = clamp(S.happy - 5); return "안 아픈데 약은 싫어요!"; }
+      S.sick = false; S.health = clamp(S.health + 10); log("약을 먹고 나았어요."); return "다 나았어요!";
+    },
+  };
+
+  function act(name) {
+    if (S.dead) return toast("새 알을 받으려면 '처음부터'를 누르세요.");
+    if (S.stage === "egg") return toast("아직 알이에요. 곧 깨어나요!");
+    if (S.sleeping && name !== "sleep" && name !== "med") return toast("자고 있어요. 깨우려면 '재우기'를 누르세요.");
+    toast(ACTIONS[name]());
+    save(); render();
+  }
+
+  function guess(g) {
+    if (!play) return;
+    if (g === "Q" || play.round >= 5) return endPlay();
+    const dir = Math.random() < 0.5 ? "L" : "R";
+    play.round++; play.dir = dir; play.shown = 1.2;
+    const win = dir === g;
+    if (win) play.wins++;
+    S.energy = clamp(S.energy - 3); S.hunger = clamp(S.hunger - 2);
+    toast(`${play.round}판: ${win ? "맞았어요!" : "아쉬워요"} (${play.wins}/${play.round})`);
+    if (play.round >= 5) setTimeout(endPlay, 900);
+    render();
+  }
+  function endPlay() {
+    if (!play) return;
+    const { wins, round } = play;
+    play = null;
+    document.getElementById("actions").hidden = false;
+    document.getElementById("gameKeys").hidden = true;
+    if (round > 0) {
+      S.happy = clamp(S.happy + 6 + wins * 8);
+      S.weight = Math.max(3, S.weight - 1);
+      log(`놀이에서 ${round}판 중 ${wins}판 맞혔어요.`);
+      toast(wins >= 3 ? "신나게 놀았어요!" : "그래도 재밌었어요.");
+    } else toast("다음에 놀아요.");
+    save(); render();
+  }
+
+  // ---- drawing (64x48 pixel LCD) ----
+  const cv = document.getElementById("lcd");
+  const g = cv.getContext("2d");
+  let ink = "#2f3a1f", lcdBg = "#c4d3a2";
+  function readColors() {
+    const cs = getComputedStyle(document.documentElement);
+    ink = cs.getPropertyValue("--lcd-ink").trim() || ink;
+    lcdBg = cs.getPropertyValue("--lcd").trim() || lcdBg;
+  }
+  const px = (x, y, w = 1, h = 1) => g.fillRect(Math.round(x), Math.round(y), w, h);
+  function oval(cx, cy, rx, ry, fill = true) {
+    for (let y = -ry; y <= ry; y++) for (let x = -rx; x <= rx; x++) {
+      const d = (x * x) / (rx * rx) + (y * y) / (ry * ry);
+      if (fill ? d <= 1 : d <= 1 && d > 1 - 2.2 / Math.min(rx, ry)) px(cx + x, cy + y);
+    }
+  }
+  function sprite(rows, x, y) {
+    rows.forEach((r, j) => [...r].forEach((c, i) => c === "#" && px(x + i, y + j)));
+  }
+  const POOP = ["..#..", ".###.", "#####"];
+  const SKULL = [".###.", "#.#.#", "#####", ".#.#."];
+  const CROSS = [".#.", "###", ".#."];
+  const Z = ["###", "..#", ".#.", "###"];
+
+  function drawPet(t) {
+    const st = S.stage;
+    const bob = S.sleeping || S.dead ? 0 : Math.round(Math.sin(t / 300) * 1);
+    let cx = 26 + (play && play.shown > 0 ? (play.dir === "L" ? -6 : 6) : 0);
+    if (!play && !S.sleeping && !S.dead && st !== "egg") cx += Math.round(Math.sin(t / 2100) * 6);
+    const ground = 40;
+
+    if (st === "egg") {
+      const wob = Math.sin(t / 150) * (S.age > 14 ? 1 : 0);
+      oval(cx + wob, ground - 9, 7, 9, false);
+      sprite(["#.", ".#"], cx - 2 + wob, ground - 12);
+      sprite(["##"], cx + 2 + wob, ground - 6);
+      return;
+    }
+    const size = { baby: [6, 5], child: [8, 7], teen: [9, 8], adult: [11, 9] }[st];
+    const [rx, ry] = size;
+    const cy = ground - ry + bob;
+
+    // body outline + features
+    oval(cx, cy, rx, ry, false);
+    if (st !== "baby") { // ears
+      px(cx - rx + 2, cy - ry - 1, 2, 2); px(cx + rx - 3, cy - ry - 1, 2, 2);
+    }
+    if (st === "teen" || st === "adult") { // tail
+      px(cx + rx, cy + 2, 2, 1); px(cx + rx + 2, cy + 1, 1, 1);
+    }
+    if (st === "adult") { // sprout
+      px(cx, cy - ry - 3, 1, 3); px(cx - 2, cy - ry - 4, 2, 1); px(cx + 1, cy - ry - 4, 2, 1);
+    }
+    // feet
+    px(cx - rx + 3, ground + 1, 2, 1); px(cx + rx - 4, ground + 1, 2, 1);
+
+    // face
+    const ex = Math.max(2, Math.floor(rx / 2.5)), ey = cy - 1;
+    const blink = Math.floor(t / 160) % 25 === 0;
+    const mood = S.dead ? "dead" : S.sleeping ? "sleep" : S.sick ? "sick" :
+      (S.hunger < 25 || S.happy < 25) ? "sad" : S.happy > 70 ? "happy" : "ok";
+    if (mood === "dead") {
+      sprite(["#.#", ".#.", "#.#"], cx - ex - 1, ey - 1); sprite(["#.#", ".#.", "#.#"], cx + ex - 1, ey - 1);
+    } else if (mood === "sleep" || blink) {
+      px(cx - ex - 1, ey, 2, 1); px(cx + ex, ey, 2, 1);
+    } else if (mood === "happy") {
+      sprite([".#.", "#.#"], cx - ex - 1, ey - 1); sprite([".#.", "#.#"], cx + ex - 1, ey - 1);
+    } else {
+      px(cx - ex - 1, ey - 1, 2, 2); px(cx + ex, ey - 1, 2, 2);
+    }
+    const my = cy + Math.max(2, Math.floor(ry / 2.5));
+    if (mood === "happy") sprite(["#..#", ".##."], cx - 2, my);
+    else if (mood === "sad" || mood === "sick") sprite([".##.", "#..#"], cx - 2, my);
+    else if (mood !== "sleep") px(cx - 1, my, 2, 1);
+    if (mood === "sick") sprite(CROSS, cx + rx + 2, cy - ry - 2);
+  }
+
+  function render(t = performance.now()) {
+    g.fillStyle = lcdBg; g.fillRect(0, 0, 64, 48);
+    g.fillStyle = ink;
+    // ground line
+    for (let x = 2; x < 62; x += 2) px(x, 43);
+    drawPet(t);
+    for (let i = 0; i < S.poops; i++) sprite(POOP, 44 + (i % 2) * 8, 38 - Math.floor(i / 2) * 5);
+    if (S.sleeping) {
+      g.globalAlpha = 0.35; g.fillRect(0, 0, 64, 48); g.globalAlpha = 1; g.fillStyle = ink;
+      const zy = 8 + Math.round(Math.sin(t / 500) * 2);
+      sprite(Z, 40, zy); sprite(Z, 46, zy - 5);
+    }
+    if (S.dead) sprite(SKULL, 4, 4);
+    const needs = !S.dead && S.stage !== "egg" && (S.hunger < 25 || S.happy < 25 || S.sick || S.poops >= 2 || S.energy < 15);
+    if (needs && Math.floor(t / 500) % 2) sprite(["#", "#", "#", ".", "#"], 4, 4);
+    if (play && play.shown <= 0) sprite(["###", "..#", ".#.", "...", ".#."], 30, 4);
+  }
+
+  // ---- panel ----
+  const BAR_DEFS = [["hunger", "배부름"], ["happy", "행복"], ["clean", "청결"], ["energy", "체력"], ["health", "건강"]];
+  const barsEl = document.getElementById("bars");
+  barsEl.innerHTML = BAR_DEFS.map(([k, label]) =>
+    `<div class="bar"><span>${label}</span><div class="track"><div class="fill" id="b_${k}"></div></div><span class="num" id="n_${k}"></span></div>`).join("");
+
+  function updatePanel() {
+    for (const [k] of BAR_DEFS) {
+      const v = Math.round(S[k]);
+      const fill = document.getElementById("b_" + k);
+      fill.style.width = v + "%";
+      fill.style.background = v < 25 ? "var(--bad)" : v < 50 ? "var(--warn)" : "var(--good)";
+      document.getElementById("n_" + k).textContent = v;
+    }
+    document.getElementById("fStage").textContent = S.dead ? "별" : stageOf(S.age).name;
+    document.getElementById("fAge").textContent = Math.floor(S.age / 60) + "분";
+    document.getElementById("fWeight").textContent = S.weight + "g";
+    document.getElementById("fMiss").textContent = S.misses;
+    document.getElementById("title").textContent = `${S.name} 키우기`;
+    const pills = [];
+    if (S.dead) pills.push(["bad", "별이 됨"]);
+    else if (S.stage === "egg") pills.push(["", "부화 중"]);
+    else {
+      if (S.sleeping) pills.push(["", "자는 중"]);
+      if (S.sick) pills.push(["bad", "아픔"]);
+      if (S.poops) pills.push([S.poops >= 3 ? "bad" : "warn", `똥 ${S.poops}개`]);
+      if (S.hunger < 25) pills.push(["warn", "배고픔"]);
+      if (S.happy < 25) pills.push(["warn", "심심함"]);
+      if (S.energy < 15 && !S.sleeping) pills.push(["warn", "졸림"]);
+      if (!pills.length) pills.push(["good", "기분 좋음"]);
+    }
+    document.getElementById("status").innerHTML = pills.map(([c, l]) => `<span class="pill ${c}">${l}</span>`).join("");
+    document.getElementById("log").innerHTML = S.log.map(e => `<li><time>${e.t}</time><span>${escapeHtml(e.msg)}</span></li>`).join("");
+    document.getElementById("speedBtn").textContent = `시간 ×${S.speed}`;
+    document.getElementById("aSleep").textContent = S.sleeping ? "깨우기" : "재우기";
+    if (document.activeElement !== document.getElementById("petName")) document.getElementById("petName").value = S.name;
+  }
+  function escapeHtml(s) { return s.replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+
+  // ---- wiring ----
+  document.getElementById("actions").addEventListener("click", e => {
+    const b = e.target.closest("button[data-act]"); if (b) act(b.dataset.act);
+  });
+  document.getElementById("gameKeys").addEventListener("click", e => {
+    const b = e.target.closest("button[data-guess]"); if (b) guess(b.dataset.guess);
+  });
+  document.addEventListener("keydown", e => {
+    if (!play || e.target.tagName === "INPUT") return;
+    if (e.key === "ArrowLeft") guess("L");
+    if (e.key === "ArrowRight") guess("R");
+  });
+  document.getElementById("petName").addEventListener("change", e => {
+    const v = e.target.value.trim().slice(0, 8);
+    if (v) { S.name = v; log(`이름을 ${josa(v, "으로", "로")} 지었어요.`); save(); updatePanel(); }
+  });
+  document.getElementById("speedBtn").addEventListener("click", () => {
+    S.speed = S.speed === 1 ? 20 : 1; save(); updatePanel();
+    toast(S.speed === 1 ? "보통 속도" : "시간이 20배 빨라졌어요");
+  });
+  const resetBtn = document.getElementById("resetBtn"), yes = document.getElementById("resetYes"), no = document.getElementById("resetNo");
+  resetBtn.addEventListener("click", () => { resetBtn.hidden = true; yes.hidden = false; no.hidden = false; });
+  no.addEventListener("click", () => { resetBtn.hidden = false; yes.hidden = true; no.hidden = true; });
+  yes.addEventListener("click", () => {
+    const speed = S.speed;
+    S = fresh(S.name); S.speed = speed; play = null;
+    document.getElementById("actions").hidden = false; document.getElementById("gameKeys").hidden = true;
+    log("새 알을 받았어요."); save(); updatePanel(); no.click(); toast("새 알이 왔어요!");
+  });
+  const mq = matchMedia("(prefers-color-scheme: dark)");
+  mq.addEventListener?.("change", readColors);
+  new MutationObserver(readColors).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+  // offline catch-up
+  if (S.savedAt) {
+    const away = Math.min(MAX_OFFLINE_SEC, Math.max(0, (Date.now() - S.savedAt) / 1000));
+    if (away > 5) {
+      simulate(away);
+      if (away > 60) log(`${Math.round(away / 60)}분 동안 자리를 비웠어요.`);
+    }
+  }
+  if (!S.log.length) log("새 알을 받았어요.");
+
+  readColors();
+  let last = performance.now(), acc = 0, saveAcc = 0;
+  function frame(t) {
+    const dt = Math.min(1, (t - last) / 1000); last = t;
+    if (play && play.shown > 0) play.shown -= dt;
+    acc += dt * S.speed; saveAcc += dt;
+    if (acc >= 0.25) { simulate(acc); acc = 0; updatePanel(); }
+    if (saveAcc > 5) { save(); saveAcc = 0; }
+    render(t);
+    requestAnimationFrame(frame);
+  }
+  updatePanel(); render();
+  requestAnimationFrame(frame);
+  addEventListener("pagehide", save);
+  document.addEventListener("visibilitychange", () => { if (document.hidden) save(); else { const S2 = load(); if (S2) { const away = Math.min(MAX_OFFLINE_SEC, (Date.now() - S2.savedAt) / 1000); if (away > 2) simulate(away); } last = performance.now(); } });
+
+  window.__mongle = { get state() { return S; }, simulate, act };
+})();
+</script>
