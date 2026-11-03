@@ -142,6 +142,7 @@ canvas#lcd { display: block; width: 100%; aspect-ratio: 4 / 3; max-width: 100%; 
 .btn:disabled { opacity: .4; cursor: not-allowed; }
 .btn.primary { background: var(--mint); color: #10241d; border-color: var(--edge); }
 .btn.danger { color: var(--bad); border-color: var(--bad); }
+.btn.kakao { background: #fee500; color: #191919; border-color: var(--edge); }
 .price { color: var(--gold); }
 
 .dex { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
@@ -280,7 +281,7 @@ body.picking .tabbar, body.picking .coins { display: none; }
         <div class="row acct-head"><img class="ico" data-icon="cloud" alt=""><b>계정 · 클라우드 저장</b></div>
         <div id="acctOut" style="display:grid;gap:10px">
           <p class="help">로그인하면 기록이 클라우드에 저장돼서 다른 기기에서도 이어서 키울 수 있어요.</p>
-          <div class="row"><button class="btn primary" id="gLogin">Google로 로그인</button></div>
+          <div class="row"><button class="btn kakao" id="kLogin" hidden>카카오로 로그인</button><button class="btn primary" id="gLogin">Google로 로그인</button></div>
           <p class="help" id="inAppHint" hidden>카카오톡 같은 앱 안의 브라우저에서는 Google 로그인이 막혀 있어요. 화면 오른쪽 위 메뉴에서 <b>다른 브라우저로 열기</b>를 누르거나, 아래 이메일로 로그인해 주세요.</p>
           <div class="row"><input id="acctEmail" type="email" placeholder="이메일" autocomplete="email"><input id="acctPw" type="password" placeholder="비밀번호 (6자 이상)" autocomplete="current-password"></div>
           <div class="row"><button class="btn" id="emailIn">이메일로 로그인</button><button class="btn" id="emailUp">가입하기</button><button class="btn" id="pwReset">비밀번호 찾기</button></div>
@@ -332,9 +333,9 @@ body.picking .tabbar, body.picking .coins { display: none; }
   const DEX_KEY = "mongle-dex-v1";
   const STAGES = [
     { id: "egg",   name: "알",     until: 20 },
-    { id: "baby",  name: "아기",   until: 240 },
-    { id: "child", name: "어린이", until: 900 },
-    { id: "teen",  name: "청소년", until: 2400 },
+    { id: "baby",  name: "아기",   until: 600 },   // 10분
+    { id: "child", name: "어린이", until: 3600 },  // 1시간
+    { id: "teen",  name: "청소년", until: 10800 }, // 3시간
     { id: "adult", name: "어른",   until: Infinity },
   ];
   const FORMS = {
@@ -368,7 +369,10 @@ body.picking .tabbar, body.picking .coins { display: none; }
     pet:   { text: "쓰다듬어 주세요" },
     cake:  { text: "케이크가 먹고 싶어요" },
   };
-  const MAX_OFFLINE_SEC = 4 * 3600;
+  const MAX_OFFLINE_SEC = 72 * 3600; // 자리를 비운 시간은 최대 3일까지 '안심 모드'로 반영
+  // 1초당 변화량 (켜 둔 상태 기준). 자리를 비운 동안은 AWAY_RATE 배로 느리게.
+  const RATE = { hunger: 1 / 216, happy: 1 / 270, energy: 1 / 216, clean: 1 / 360, sleepEnergy: 1 / 12, sleepHunger: 1 / 900 };
+  const AWAY_RATE = 0.5, AWAY_FLOOR = 20;
 
   // 받침 유무에 따라 조사 선택: josa("몽글이", "이", "가") -> "몽글이가"
   function josa(word, withB, withoutB) {
@@ -465,10 +469,12 @@ body.picking .tabbar, body.picking .coins { display: none; }
   }
 
   // ---- simulation ----
-  function step(sec) {
+  // away = 앱이 닫혀 있던 시간을 몰아서 계산하는 중 (안심 모드: 병·죽음·소원 실패 없음)
+  function step(sec, away = false) {
     if (S.dead) return;
     S.age += sec;
-    const st = stageOf(S.age);
+    const cur = STAGES.findIndex(x => x.id === S.stage);
+    const st = STAGES[Math.max(cur, STAGES.indexOf(stageOf(S.age)))]; // 단계는 뒤로 가지 않는다
     if (st.id !== S.stage) {
       const prev = S.stage;
       S.stage = st.id;
@@ -486,48 +492,53 @@ body.picking .tabbar, body.picking .coins { display: none; }
     }
     if (S.stage === "egg") return;
 
+    const k = away ? AWAY_RATE : 1;
+    const floor = (key, v) => { S[key] = away ? Math.max(Math.min(S[key], AWAY_FLOOR), clamp(v)) : clamp(v); };
     if (S.sleeping) {
-      S.energy = clamp(S.energy + sec / 5);
-      S.hunger = clamp(S.hunger - sec / 60);
-      if (S.energy >= 100) { S.sleeping = false; log(`${iga(S.name)} 푹 자고 일어났어요.`); }
+      S.energy = clamp(S.energy + sec * RATE.sleepEnergy);
+      floor("hunger", S.hunger - sec * RATE.sleepHunger * k);
+      if (S.energy >= 100) { S.sleeping = false; if (!away) log(`${iga(S.name)} 푹 자고 일어났어요.`); }
     } else {
-      S.hunger = clamp(S.hunger - sec / 24);
-      S.happy = clamp(S.happy - sec / 30);
-      S.energy = clamp(S.energy - sec / 36);
-      S.clean = clamp(S.clean - sec / 45);
+      floor("hunger", S.hunger - sec * RATE.hunger * k);
+      floor("happy", S.happy - sec * RATE.happy * k);
+      floor("clean", S.clean - sec * RATE.clean * k);
+      S.energy = clamp(S.energy - sec * RATE.energy * k);
       S.happySum += S.happy * sec; S.happyN += sec;
-      if (S.energy <= 0) { S.sleeping = true; log(`${iga(S.name)} 지쳐서 잠들었어요.`); }
+      if (S.energy <= (away ? 30 : 0)) { S.sleeping = true; if (!away) log(`${iga(S.name)} 지쳐서 잠들었어요.`); }
     }
 
-    // digestion
+    // digestion (자리 비운 동안은 똥이 2개까지만 쌓임)
+    const poopCap = away ? 2 : 4;
     if (S.poopTimer > 0) {
       S.poopTimer -= sec;
-      if (S.poopTimer <= 0) { addPoop(); S.poopTimer = -1; }
-    } else if (!S.sleeping && Math.random() < sec / 240) addPoop();
+      if (S.poopTimer <= 0) { if (S.poops < poopCap) addPoop(); S.poopTimer = -1; }
+    } else if (!S.sleeping && S.poops < poopCap && Math.random() < sec / 3600) addPoop();
+    if (away) S.clean = Math.max(S.clean, Math.min(S.clean + 15, AWAY_FLOOR)); // 똥 때문에 바닥 아래로 내려가지 않게
 
-    // wishes
-    if (S.wish) {
+    // wishes (자리 비운 동안은 멈춤)
+    if (away) { /* 소원 타이머 정지 */ }
+    else if (S.wish) {
       S.wish.left -= sec;
       if (S.wish.left <= 0) {
-        S.happy = clamp(S.happy - 8);
+        S.happy = clamp(S.happy - 3);
         log(`소원(${WISHES[S.wish.type].text})을 못 들어줬어요.`);
-        S.wish = null; S.wishCooldown = 60;
+        S.wish = null; S.wishCooldown = 300 + Math.random() * 300;
       }
     } else if (!S.sleeping) {
       S.wishCooldown -= sec;
       if (S.wishCooldown <= 0) {
         const types = Object.keys(WISHES);
         S.wish = { type: types[Math.floor(Math.random() * types.length)], left: 90 };
-        S.wishCooldown = 60 + Math.random() * 90;
+        S.wishCooldown = 180 + Math.random() * 180;
         sfx.wish();
       }
     }
 
-    // sickness
-    if (!S.sick) {
+    // sickness (자리 비운 동안은 걸리지 않음)
+    if (!S.sick && !away) {
       let p = 0;
-      if (S.poops >= 3 || S.clean < 20) p += 0.01;
-      if (S.hunger < 10) p += 0.005;
+      if (S.poops >= 3 || S.clean < 20) p += 0.0003;
+      if (S.hunger < 10) p += 0.0003;
       if (Math.random() < p * sec) { S.sick = true; log(`${iga(S.name)} 아파요. 약이 필요해요.`); }
     }
 
@@ -537,19 +548,21 @@ body.picking .tabbar, body.picking .coins { display: none; }
     }
 
     let dh = 0;
-    if (S.sick) dh -= 0.15;
-    for (const k of ["hunger", "happy", "clean"]) if (S[k] <= 0) dh -= 0.1;
-    if (dh === 0) dh = 0.03;
+    if (S.sick) dh -= 0.006;
+    for (const key of ["hunger", "happy", "clean"]) if (S[key] <= 0) dh -= 0.008;
+    if (dh === 0) dh = 0.01;
+    if (away && dh < 0) dh = 0; // 자리 비운 동안 건강은 줄지 않음
     S.health = clamp(S.health + dh * sec);
     if (S.health <= 0) {
       S.dead = true; S.sleeping = false; S.wish = null;
       log(`${iga(S.name)} 별이 되었어요. '처음부터'로 새 알을 받을 수 있어요.`);
     }
   }
-  function addPoop() { if (S.poops < 4) { S.poops++; S.clean = clamp(S.clean - 15); } }
-  function simulate(sec) {
-    while (sec >= 1) { step(1); sec -= 1; }
-    if (sec > 0) step(sec);
+  function addPoop() { if (S.poops < 4) { S.poops++; S.clean = clamp(S.clean - 10); } }
+  function simulate(sec, away = false) {
+    const chunk = away ? 10 : 1; // 오래 비운 시간은 10초 단위로 빠르게 계산
+    while (sec >= chunk) { step(chunk, away); sec -= chunk; }
+    if (sec > 0) step(sec, away);
   }
 
   function grantWish(type) {
@@ -566,7 +579,7 @@ body.picking .tabbar, body.picking .coins { display: none; }
     feed() {
       if (S.hunger >= 95) { S.happy = clamp(S.happy - 3); setReact("no", 0.8); return "배불러서 고개를 돌려요."; }
       S.hunger = clamp(S.hunger + 30); S.weight += 1; setReact("eat");
-      if (S.poopTimer < 0) S.poopTimer = 40 + Math.random() * 60;
+      if (S.poopTimer < 0) S.poopTimer = 300 + Math.random() * 300;
       log("밥을 먹었어요."); return "냠냠, 맛있어요!" + grantWish("feed");
     },
     snack() {
@@ -1298,7 +1311,8 @@ body.picking .tabbar, body.picking .coins { display: none; }
     $("cloudDot").hidden = !cloudUser;
     if (cloudUser) {
       const when = lastPushed ? ` 마지막 저장 ${new Date(lastPushed).toLocaleTimeString("ko-KR", { hour: "2-digit", minute: "2-digit" })}` : "";
-      $("acctWho").textContent = `${cloudUser.email || "Google 계정"}으로 로그인했어요.${when}`;
+      const who = cloudUser.displayName || cloudUser.email || (cloudUser.uid.startsWith("kakao:") ? "카카오 계정" : "계정");
+      $("acctWho").textContent = `${/[가-힣]$/.test(who) ? josa(who, "으로", "로") : who + "(으)로"} 로그인했어요.${when}`;
     }
   }
   const stageLabel = (x) => x.stage === "adult" && x.form ? formName(x.form, x.species) : (STAGES.find(st => st.id === x.stage) || STAGES[0]).name;
@@ -1313,6 +1327,7 @@ body.picking .tabbar, body.picking .coins { display: none; }
     } catch (e) { cloud = null; return; } // 오프라인 등: 이 기기 저장만 사용
     renderAccount();
     cloud.onRedirectError((e) => acctMsg("Google 로그인에 실패했어요. " + friendly(e)));
+    handleKakaoReturn();
     cloud.onUser(async (u) => {
       cloudUser = u; renderAccount();
       if (u && cloudLoadedFor !== u.uid) { cloudLoadedFor = u.uid; acctMsg(""); await syncOnLogin(); }
@@ -1366,6 +1381,46 @@ body.picking .tabbar, body.picking .coins { display: none; }
   }
   const creds = () => [$("acctEmail").value.trim(), $("acctPw").value];
   const tryAuth = async (fn, okMsg) => { acctMsg("잠시만요…"); try { await fn(); acctMsg(okMsg || ""); } catch (e) { acctMsg(friendly(e)); } };
+  // ---- 카카오 로그인 (카카오 인증 → Netlify 함수가 Firebase 토큰 발급 → 로그인) ----
+  const KAKAO = window.MONGLE_KAKAO;
+  $("kLogin").hidden = !(KAKAO && KAKAO.restKey);
+  const kakaoRedirect = () => (KAKAO && KAKAO.redirectUri) || location.origin + "/";
+  $("kLogin").addEventListener("click", () => {
+    const state = newPid();
+    try { sessionStorage.setItem("mongleKakaoState", state); } catch {}
+    save(); acctMsg("카카오 로그인 화면으로 이동해요…");
+    location.href = "https://kauth.kakao.com/oauth/authorize?response_type=code"
+      + "&client_id=" + encodeURIComponent(KAKAO.restKey)
+      + "&redirect_uri=" + encodeURIComponent(kakaoRedirect())
+      + "&state=" + encodeURIComponent(state);
+  });
+  function handleKakaoReturn() {
+    const qs = new URLSearchParams(location.search);
+    const code = qs.get("code"), state = qs.get("state"), err = qs.get("error");
+    if (!code && !err) return;
+    let expected = null;
+    try { expected = sessionStorage.getItem("mongleKakaoState"); sessionStorage.removeItem("mongleKakaoState"); } catch {}
+    const keep = new URLSearchParams(location.search); ["code", "state", "error", "error_description"].forEach(k => keep.delete(k));
+    history.replaceState(null, "", location.pathname + (keep.toString() ? "?" + keep : "")); // 주소창에서 코드 지우기
+    if (err) return toast(err === "access_denied" ? "카카오 로그인을 취소했어요." : "카카오 로그인에 실패했어요.", 4000);
+    if (!expected || expected !== state) { acctMsg("카카오 로그인 확인에 실패했어요. 다시 시도해 주세요."); return; }
+    finishKakao(code);
+  }
+  async function finishKakao(code) {
+    toast("카카오 로그인 중…", 0);
+    try {
+      const res = await fetch("/.netlify/functions/kakao-auth", {
+        method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ code }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.token) throw new Error(data.error || "서버에 연결하지 못했어요.");
+      await cloud.kakaoFinish(data.token, data.nickname);
+      renderAccount(); toast("카카오로 로그인했어요!");
+    } catch (e) {
+      const m = "카카오 로그인에 실패했어요. " + (e && e.code ? friendly(e) : (e && e.message) || "");
+      acctMsg(m); toast(m, 5000);
+    }
+  }
   const inApp = /KAKAOTALK|NAVER\(inapp|Instagram|FBAN|FBAV|Line\/|DaumApps|everytimeApp|; wv\)/i.test(navigator.userAgent);
   $("inAppHint").hidden = !inApp;
   $("gLogin").addEventListener("click", () => {
@@ -1509,8 +1564,13 @@ body.picking .tabbar, body.picking .coins { display: none; }
   function catchUp(fromTs) {
     const away = Math.min(MAX_OFFLINE_SEC, Math.max(0, (Date.now() - fromTs) / 1000));
     if (away > 5) {
-      simulate(away);
-      if (away > 60) log(`${Math.round(away / 60)}분 동안 자리를 비웠어요.`);
+      simulate(away, true);
+      if (away > 600) {
+        const h = Math.floor(away / 3600), m = Math.round((away % 3600) / 60);
+        const span = h ? `${h}시간${m ? " " + m + "분" : ""}` : `${m}분`;
+        log(`${span} 동안 자리를 비웠어요.`);
+        if (!S.dead && S.species) setTimeout(() => toast(`${iga(S.name)} ${span} 동안 기다리고 있었어요!`, 4000), 600);
+      }
     }
   }
   if (loaded) catchUp(S.savedAt);
@@ -1521,6 +1581,10 @@ body.picking .tabbar, body.picking .coins { display: none; }
   readColors();
   renderShop();
   let last = performance.now(), acc = 0, saveAcc = 0;
+  const IDLE_AFTER = 10 * 60 * 1000;
+  let lastInput = performance.now();
+  const isIdle = () => performance.now() - lastInput > IDLE_AFTER;
+  ["pointerdown", "keydown", "touchstart"].forEach(ev => addEventListener(ev, () => { lastInput = performance.now(); }, { passive: true, capture: true }));
   function frame(t) {
     const dt = Math.min(0.1, (t - last) / 1000); last = t;
     if (picking) { drawPickCards(t); requestAnimationFrame(frame); return; }
@@ -1528,7 +1592,8 @@ body.picking .tabbar, body.picking .coins { display: none; }
     if (game) updateGame(dt);
     else {
       acc += dt * S.speed;
-      if (acc >= 0.25) { simulate(acc); acc = 0; updatePanel(); }
+      // 10분 동안 조작이 없으면 켜져 있어도 '안심 모드'(자리 비움과 같은 계산)
+      if (acc >= 0.25) { simulate(acc, isIdle()); acc = 0; updatePanel(); }
     }
     for (const sp of sparks) { sp.x += sp.vx * dt; sp.y += sp.vy * dt; sp.vy += 30 * dt; sp.life -= dt; }
     for (let i = sparks.length - 1; i >= 0; i--) if (sparks[i].life <= 0) sparks.splice(i, 1);
@@ -1557,6 +1622,6 @@ body.picking .tabbar, body.picking .coins { display: none; }
   if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost" || location.hostname === "127.0.0.1")) {
     addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
   }
-  window.__mongle = { get cloudUser() { return cloudUser; }, get lastPushed() { return lastPushed; }, pushCloud, SPECIES, get picking() { return picking; }, drawCat, drawEgg, faceFor, setCtx(c) { g = c; }, get state() { return S; }, get game() { return game; }, get dex() { return dex; }, simulate, act, decideForm };
+  window.__mongle = { idleNow() { lastInput = -1e12; }, get cloudUser() { return cloudUser; }, get lastPushed() { return lastPushed; }, pushCloud, SPECIES, get picking() { return picking; }, drawCat, drawEgg, faceFor, setCtx(c) { g = c; }, get state() { return S; }, get game() { return game; }, get dex() { return dex; }, simulate, act, decideForm };
 })();
 </script>

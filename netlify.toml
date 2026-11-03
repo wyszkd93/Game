@@ -3,6 +3,10 @@
   publish = "mongle"
   command = ""
 
+# 서버 함수(카카오 로그인 → Firebase 토큰 교환). 외부 패키지 없이 Node 기본 모듈만 사용
+[functions]
+  directory = "netlify/functions"
+
 # 서비스 워커와 페이지는 항상 최신 확인(설치된 앱이 업데이트를 바로 받도록)
 [[headers]]
   for = "/sw.js"
