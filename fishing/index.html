@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="description" content="눈 내리는 겨울 호수에서 물고기를 낚는 3D 크리스마스 낚시 게임">
+<meta name="theme-color" content="#cfe3ff">
+<title>겨울 호수 낚시</title>
+<link rel="stylesheet" href="style.css">
+<script type="importmap">{ "imports": { "three": "../christmas/lib/three.module.min.js" } }</script>
+</head>
+<body>
+<canvas id="view"></canvas>
+
+<div id="hud" class="hidden">
+  <div id="score">🎣 점수 <b id="pts">0</b> · 잡은 수 <b id="cnt">0</b></div>
+  <div id="topright">
+    <button id="dexbtn" aria-label="도감 열기">📖</button>
+    <button id="mute" aria-label="소리 켜기/끄기">🔊</button>
+  </div>
+  <div id="toast"></div>
+  <div id="power" class="hidden"><i></i></div>
+  <div id="reel" class="hidden">
+    <div id="reellabel">천천히 감아요</div>
+    <div class="bar"><i id="prog"></i></div>
+    <div class="bar tension"><i id="tens"></i></div>
+    <div class="cap"><span>진행</span><span>줄 팽팽함</span></div>
+  </div>
+  <div id="hint"></div>
+  <button id="act" aria-label="낚시 동작">🎣</button>
+</div>
+
+<div id="result" class="hidden"><div id="rem" class="big"></div><div id="rname"></div><div id="rpts"></div></div>
+
+<div id="dex" class="overlay hidden">
+  <h2>📖 물고기 도감</h2>
+  <ul id="dexlist"></ul>
+  <button id="dexclose" class="primary">닫기</button>
+</div>
+
+<div id="start" class="overlay">
+  <h1>🎣 겨울 호수 낚시</h1>
+  <p>눈 덮인 호수에서 크리스마스 물고기를 잡아요.</p>
+  <div id="skins" role="radiogroup" aria-label="캐릭터 색 고르기"></div>
+  <button id="go" class="primary">시작하기</button>
+  <p class="small" id="howto"></p>
+</div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
