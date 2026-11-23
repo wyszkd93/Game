@@ -1,0 +1,11 @@
+{
+  "name": "xmas-penguin-server",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node node-server.js",
+    "test": "node test.js",
+    "deploy": "npx wrangler deploy"
+  },
+  "dependencies": { "ws": "^8.18.0" }
+}

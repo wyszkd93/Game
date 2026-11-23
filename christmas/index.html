@@ -7,6 +7,7 @@
 <meta name="theme-color" content="#cfe3ff">
 <title>눈 내리는 마을</title>
 <link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="../shared/lobby.css">
 <script type="importmap">{ "imports": { "three": "./lib/three.module.min.js" } }</script>
 </head>
 <body>
@@ -15,17 +16,13 @@
 <div id="hud" class="hidden">
   <div id="score">⛄ 맞힌 횟수 <b id="hits">0</b> · 맞은 횟수 <b id="got">0</b></div>
   <button id="mute" aria-label="소리 켜기/끄기">🔊</button>
+  <div id="players" class="hidden"></div>
+  <div id="toast"></div>
   <div id="hint"></div>
   <button id="throw" aria-label="눈덩이 던지기">❄️</button>
 </div>
 
-<div id="start" class="overlay">
-  <h1>🎄 눈 내리는 마을</h1>
-  <p>눈덩이를 던지며 친구들과 눈싸움을 해요.</p>
-  <div id="skins" role="radiogroup" aria-label="캐릭터 색 고르기"></div>
-  <button id="go" class="primary">시작하기</button>
-  <p class="small" id="howto"></p>
-</div>
+<div id="start" class="overlay"></div>
 
 <noscript><p style="padding:24px">이 게임은 JavaScript가 필요합니다.</p></noscript>
 <script type="module" src="js/main.js"></script>

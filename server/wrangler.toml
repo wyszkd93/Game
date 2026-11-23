@@ -1,0 +1,15 @@
+name = "xmas-penguin-server"
+main = "worker.js"
+compatibility_date = "2025-01-01"
+
+# 배포 후 허용할 게임 주소를 적으세요 (비우면 모든 사이트에서 접속 가능)
+# [vars]
+# ALLOWED_ORIGINS = "https://wyszkd93.github.io"
+
+[[durable_objects.bindings]]
+name = "ROOMS"
+class_name = "GameRoom"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["GameRoom"]

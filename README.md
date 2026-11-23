@@ -22,17 +22,46 @@ Three.js로 만든 3D 크리스마스 눈싸움 게임입니다. 빌드 없이 `
 - 조작: 클릭/탭 이동, 드래그 카메라 회전, WASD, 휠 확대, Space/F(모바일은 ❄️ 버튼)로 눈덩이 던지기
 - 눈덩이는 포물선(`vy = (Δy + ½·g·t²)/t`)으로 날아가고, 연습 상대(NPC 4명)와 눈싸움
 - 눈 위 발자국, 검은 외곽선(뒤집은 껍질 방식), WebAudio 효과음, 캐릭터 색 고르기
-- 캐릭터는 모델 파일 없이 기본 도형으로 조립. 멀티플레이는 아직 없음(WebSocket 서버가 필요)
+- 캐릭터는 모델 파일 없이 기본 도형으로 조립한 펭귄(`shared/penguin.js`). 멀티플레이는 아래 "멀티플레이" 참고
 - 파일: `christmas/index.html`, `style.css`, `js/main.js`, `lib/three.module.min.js`(Three.js r170, MIT)
 
 ## 겨울 호수 낚시 (`fishing/index.html`)
 
-눈 내리는 마을의 얼어붙은 호수에서 크리스마스 물고기를 낚는 3D 게임입니다. Three.js와 폰트는 `christmas/` 폴더의 파일을 상대경로로 함께 씁니다(`christmas/`도 같이 배포해야 합니다).
+눈 내리는 마을의 얼어붙은 호수에서 크리스마스 물고기를 낚는 3D 게임입니다. Three.js와 폰트는 `christmas/` 폴더의 파일을, 펭귄과 로비는 `shared/`를 상대경로로 함께 씁니다(세 폴더를 같이 배포해야 합니다).
 
 - 조작: 클릭/탭·WASD 이동, 드래그 카메라, Space/F(모바일은 🎣 버튼)를 길게 눌러 힘을 모았다가 놓으면 던지기
 - 흐름: 던지기(포물선) → 찌가 잠기면 입질(약 1초 안에 누르기) → 누르고 있으면 감기고, 물고기가 버틸 때(빨간 표시)는 손을 떼서 줄 팽팽함을 낮추기 → 잡기
 - 물고기 7종(눈꽃 빙어·얼음 잉어·루돌프 송어·산타 연어·황금 별고기, 잡동사니 양말·장화), 도감(📖)과 점수는 localStorage에 저장
 - 외곽선, 눈 위 발자국, WebAudio 효과음. 모델 파일 없이 기본 도형으로 구성
+
+## 멀티플레이 · 닉네임 · 서버 (`shared/`, `server/`)
+
+눈싸움(`christmas/`)과 낚시(`fishing/`) 모두 시작 화면에서 **닉네임 입력 → 펭귄 색 → 서버 선택(1~3)** 후 입장합니다. **🔗 초대 링크 복사**로 만든 링크(`?room=2`)를 열면 그 서버가 미리 선택돼, 링크를 받은 사람이 바로 같은 마을로 들어옵니다. 서버가 없거나 연결에 실패하면 **혼자 하기**(눈싸움은 NPC 상대)로 동작합니다.
+
+- 서버 3개: `server/servers.js`(이름·정원). 방 로직은 `server/room.js` 한 파일을 Node(로컬)와 Cloudflare Workers(배포)가 같이 씁니다.
+- 동기화: 위치·방향(10Hz), 눈덩이 던지기(시작점·속도), 맞힌 횟수(맞은 쪽이 신고), 낚시 찌 위치·점수·"OO님이 낚았어요" 알림
+- 안전장치: 닉네임에서 제어문자·꺾쇠 제거(최대 10자), 좌표·속도 범위 검사, 메시지 크기·빈도 제한, 정원 20명. 점수·명중은 클라이언트 신고를 믿는 방식이라 친구끼리 노는 용도입니다.
+
+### 로컬에서 실행
+
+```bash
+cd server && npm install && npm run dev      # ws://localhost:8787
+```
+
+```bash
+python3 -m http.server 8000                   # 다른 터미널, 리포 루트에서
+```
+
+`http://localhost:8000/christmas/` 를 브라우저 탭 두 개로 열어 서로 다른 닉네임으로 입장해 보세요. `npm test`(server/)는 서버 로직 22개 테스트를 실행합니다.
+
+### 인터넷에 공개하기 (Cloudflare Workers, 직접 배포 필요)
+
+> 이 저장소에서는 실제 배포를 검증하지 못했습니다(Node 서버로만 테스트). 아래 단계와 `wrangler.toml` 설정은 Cloudflare 공식 문서로 한 번 확인하고 진행하세요.
+
+1. `cd server && npm install && npx wrangler login && npx wrangler deploy`
+2. 출력된 `https://....workers.dev` 주소를 `wss://....workers.dev` 로 바꿔 `shared/config.js`의 `PROD_SERVER`에 넣기
+3. `server/wrangler.toml`의 `ALLOWED_ORIGINS`에 게임 주소(예: `https://wyszkd93.github.io`)를 적어 다른 사이트에서의 접속 막기
+4. 게임 폴더(`christmas/`, `fishing/`, `shared/`)를 GitHub Pages 등에 올리기
 
 ## 휴대폰 앱으로 설치하기 (PWA)
 

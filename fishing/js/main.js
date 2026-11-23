@@ -1,10 +1,8 @@
 import * as THREE from "three";
+import { SKINS, createPenguin, animatePenguin, makeNameLabel } from "../../shared/penguin.js";
+import { runLobby } from "../../shared/lobby.js";
 
 const $ = id => document.getElementById(id);
-const SKINS = [
-  { name: "빨강", color: 0xe8454b }, { name: "초록", color: 0x3fbf7f },
-  { name: "파랑", color: 0x4aa3ff }, { name: "분홍", color: 0xff8fc2 },
-];
 const FISH = [
   { id: "smelt", name: "눈꽃 빙어", e: "🐟", pts: 5, w: 38, str: 0.6, col: 0xbfe3ff },
   { id: "carp", name: "얼음 잉어", e: "🐠", pts: 15, w: 24, str: 1.0, col: 0x7fb8ff },
@@ -130,28 +128,14 @@ const snowGeo = new THREE.BufferGeometry(); snowGeo.setAttribute("position", new
 const snowPts = new THREE.Points(snowGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.18, fog: false })); snowPts.frustumCulled = false; scene.add(snowPts);
 
 /* ---------- character ---------- */
-function makeChar(color) {
-  const g = new THREE.Group(), body = new THREE.Group();
-  body.add(mesh(new THREE.SphereGeometry(0.55, 16, 12), color, 0, 0.62, 0, 1.08));
-  body.add(mesh(new THREE.SphereGeometry(0.4, 16, 12), 0xffe3c9, 0, 1.4, 0, 1.08));
-  body.add(mesh(new THREE.ConeGeometry(0.4, 0.7, 12), color, 0, 1.95, 0, 1.08));
-  body.add(mesh(new THREE.SphereGeometry(0.12, 8, 6), 0xffffff, 0, 2.35, 0));
-  const scarf = mesh(new THREE.TorusGeometry(0.4, 0.09, 8, 16), 0xffffff, 0, 1.12, 0); scarf.rotation.x = Math.PI / 2; body.add(scarf);
-  const eyeM = new THREE.MeshBasicMaterial({ color: 0x1a2340 });
-  for (const sx of [-1, 1]) { const e = new THREE.Mesh(new THREE.SphereGeometry(0.05, 6, 6), eyeM); e.position.set(sx * 0.14, 1.45, 0.36); body.add(e); }
-  // 낚싯대
-  const rod = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.04, 2.2, 6), lambert(0x6b3f1e));
-  rod.position.set(0.45, 1.3, 0.85); rod.rotation.x = Math.PI / 2 - 0.7; body.add(rod);
-  g.add(body);
-  const feet = [-1, 1].map(sx => { const f = mesh(new THREE.BoxGeometry(0.28, 0.16, 0.4), 0x3a3a4a, sx * 0.22, 0.08, 0.05, 1.1); g.add(f); return f; });
-  const blob = new THREE.Mesh(new THREE.CircleGeometry(0.7, 16).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x5b6f99, transparent: true, opacity: 0.35 })); blob.position.y = 0.03; g.add(blob);
-  g.userData = { body, feet }; scene.add(g); return g;
-}
-const player = { obj: null, pos: new THREE.Vector3(0, 0, -1), facing: Math.PI, target: null, step: 0, side: 1, stride: 0, color: store.get("xmas-skin", 0) };
+function makeChar(color) { const g = createPenguin(color, { rod: true }); scene.add(g); return g; }
+const player = { obj: null, pos: new THREE.Vector3(0, 0, -1), facing: Math.PI, target: null, step: 0, side: 1, stride: 0, moving: false, name: "", color: store.get("xmas-skin", 0) };
 function setSkin(i) {
   player.color = i; store.set("xmas-skin", i);
   if (player.obj) scene.remove(player.obj);
-  player.obj = makeChar(SKINS[i].color); player.obj.position.copy(player.pos);
+  player.obj = makeChar(SKINS[i].color);
+  if (player.name) player.obj.add(makeNameLabel(player.name, { me: true }));
+  player.obj.position.copy(player.pos);
 }
 
 /* ---------- 발자국 ---------- */
@@ -288,6 +272,7 @@ function finish(ok, reason) {
     bank.pts += f.pts; bank.cnt++; bank.dex[f.id] = (bank.dex[f.id] || 0) + 1;
     store.set("xmas-fish-pts", bank.pts); store.set("xmas-fish-dex", bank.dex);
     hudP.textContent = bank.pts; hudC.textContent = bank.cnt;
+    sessionPts += f.pts; if (net) { net.send({ t: "score", v: sessionPts }); net.send({ t: "ev", k: "catch", v: f.id }); renderPlayers(); }
     $("rem").textContent = f.e; $("rname").textContent = f.name; $("rpts").textContent = f.pts ? "+" + f.pts + "점" : "쓸모는 없어요...";
     $("result").classList.remove("hidden"); sfx.win(); splash(new THREE.Vector3(player.pos.x, 1, player.pos.z).addScaledVector(new THREE.Vector3(Math.sin(player.facing), 0, Math.cos(player.facing)), 1.5), 14, f.col);
   } else { toast(reason); sfx.lose(); fs.resT = 0.8; }
@@ -340,6 +325,74 @@ function updateFishing(dt, t) {
     }
     lineGeo.attributes.position.needsUpdate = true;
   }
+}
+
+/* ---------- 멀티플레이: 다른 유저(펭귄) ---------- */
+let net = null, sessionPts = 0;
+const remotes = new Map(), hudPlayers = $("players");
+function makeBobberMesh() {
+  const g = new THREE.Group();
+  g.add(mesh(new THREE.SphereGeometry(0.2, 10, 8, 0, Math.PI * 2, 0, Math.PI / 2), 0xe8454b, 0, 0, 0, 1.15));
+  g.add(mesh(new THREE.SphereGeometry(0.2, 10, 8, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), 0xffffff, 0, 0, 0, 1.15));
+  g.visible = false; scene.add(g); return g;
+}
+function renderPlayers() {
+  hudPlayers.textContent = "";
+  if (!net) { hudPlayers.classList.add("hidden"); return; }
+  hudPlayers.classList.remove("hidden");
+  const rows = [{ name: player.name, score: sessionPts, me: true }, ...[...remotes.values()].map(r => ({ name: r.name, score: r.score }))].sort((a, b) => b.score - a.score);
+  const head = document.createElement("div"); head.textContent = (net.serverName || "서버") + " · " + (remotes.size + 1) + "명"; head.style.fontWeight = "700"; hudPlayers.append(head);
+  rows.slice(0, 6).forEach(r => { const d = document.createElement("div"); if (r.me) d.className = "me"; d.textContent = r.name + "  " + r.score + "점"; hudPlayers.append(d); });
+}
+function addRemote(p) {
+  if (remotes.has(p.id)) return;
+  const obj = createPenguin(SKINS[p.skin % 4].color, { rod: true }); obj.add(makeNameLabel(p.name)); scene.add(obj);
+  const lg = new THREE.BufferGeometry(); lg.setAttribute("position", new THREE.BufferAttribute(new Float32Array(6), 3));
+  const ln = new THREE.Line(lg, new THREE.LineBasicMaterial({ color: 0x1a2340 })); ln.frustumCulled = false; ln.visible = false; scene.add(ln);
+  const r = { id: p.id, name: p.name, score: p.hits || 0, obj, pos: new THREE.Vector3(p.x, 0, p.z), tx: p.x, tz: p.z, facing: p.f, tf: p.f, moving: !!p.mv, b: p.b, bob: makeBobberMesh(), ln };
+  obj.position.copy(r.pos); remotes.set(p.id, r); renderPlayers();
+}
+function removeRemote(id) { const r = remotes.get(id); if (r) { scene.remove(r.obj, r.bob, r.ln); remotes.delete(id); renderPlayers(); } }
+function clearRemotes() { [...remotes.keys()].forEach(removeRemote); }
+const angDiff = (a, b) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
+function updateRemotes(dt) {
+  for (const r of remotes.values()) {
+    const k = Math.min(1, dt * 12);
+    r.pos.x += (r.tx - r.pos.x) * k; r.pos.z += (r.tz - r.pos.z) * k; r.facing += angDiff(r.tf, r.facing) * k;
+    r.obj.position.copy(r.pos);
+    animatePenguin(r.obj, { moving: r.moving || Math.hypot(r.tx - r.pos.x, r.tz - r.pos.z) > 0.15, dt, facing: r.facing });
+    if (r.b) {
+      r.bob.visible = r.ln.visible = true;
+      r.bob.position.x += (r.b[0] - r.bob.position.x) * k; r.bob.position.z += (r.b[1] - r.bob.position.z) * k;
+      r.bob.position.y = 0.08 + Math.sin(performance.now() / 330 + r.id) * 0.03;
+      const a = r.ln.geometry.attributes.position.array;
+      a[0] = r.pos.x + Math.sin(r.facing); a[1] = 1.8; a[2] = r.pos.z + Math.cos(r.facing);
+      a[3] = r.bob.position.x; a[4] = r.bob.position.y; a[5] = r.bob.position.z;
+      r.ln.geometry.attributes.position.needsUpdate = true;
+    } else { r.bob.visible = r.ln.visible = false; }
+  }
+}
+function onNet(m) {
+  switch (m.t) {
+    case "join": addRemote(m.p); toast(m.p.name + " 님이 입장했어요", 1800); break;
+    case "leave": { const r = remotes.get(m.id); if (r) toast(r.name + " 님이 나갔어요", 1800); removeRemote(m.id); break; }
+    case "s": { const r = remotes.get(m.id); if (r) {
+      r.tx = m.x; r.tz = m.z; r.tf = m.f; r.moving = !!m.mv;
+      if (m.b && !r.b) r.bob.position.set(m.b[0], 0.08, m.b[1]);
+      r.b = m.b; } break; }
+    case "score": { const r = remotes.get(m.id); if (r) { r.score = m.v; renderPlayers(); } break; }
+    case "ev": {
+      const r = remotes.get(m.id), f = FISH.find(x => x.id === m.v);
+      if (r && m.k === "catch" && f) { toast(`${r.name} 님이 ${f.e} ${f.name}을(를) 낚았어요!`, 2200); splash(r.bob.position, 8); }
+      break;
+    }
+  }
+}
+let netT = 0;
+function netTick(dt) {
+  if (!net) return;
+  netT += dt; if (netT < 0.1) return; netT = 0;
+  net.send({ t: "s", x: +player.pos.x.toFixed(2), z: +player.pos.z.toFixed(2), f: +player.facing.toFixed(2), mv: player.moving ? 1 : 0, b: bobber.visible ? [+bobber.position.x.toFixed(2), +bobber.position.z.toFixed(2)] : null });
 }
 
 /* ---------- input ---------- */
@@ -398,18 +451,17 @@ function updatePlayer(dt) {
       if (d < 0.2) player.target = null; else { mx = dx / d; mz = dz / d; }
     }
   }
-  const len = Math.hypot(mx, mz), moving = len > 0.01, { body, feet } = player.obj.userData;
+  const len = Math.hypot(mx, mz), moving = len > 0.01;
   if (moving) {
     mx /= len; mz /= len; const before = player.pos.clone();
     player.pos.x += mx * SPEED * dt; player.pos.z += mz * SPEED * dt; pushOut(player.pos, 0.45);
     if (before.distanceTo(player.pos) < SPEED * dt * 0.2) player.target = null;
-    player.facing = Math.atan2(mx, mz); player.step += before.distanceTo(player.pos); player.stride += dt * 12;
+    player.facing = Math.atan2(mx, mz); player.step += before.distanceTo(player.pos);
     if (player.step > 0.55) { player.step = 0; player.side = -player.side; stamp(player.pos.x + Math.cos(player.facing) * 0.2 * player.side, player.pos.z - Math.sin(player.facing) * 0.2 * player.side, player.facing); sfx.step(); }
   }
-  const s = Math.sin(player.stride);
-  body.position.y = moving ? Math.abs(s) * 0.08 : 0;
-  feet[0].position.z = 0.05 + (moving ? s * 0.18 : 0); feet[1].position.z = 0.05 + (moving ? -s * 0.18 : 0);
-  player.obj.position.copy(player.pos); player.obj.rotation.y = player.facing;
+  player.moving = moving;
+  player.obj.position.copy(player.pos);
+  animatePenguin(player.obj, { moving, dt, facing: player.facing });
 }
 function updateCamera(dt) {
   camLock = Math.max(0, camLock - dt);
@@ -423,7 +475,7 @@ function updateCamera(dt) {
 let last = performance.now();
 function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000), t = now / 1000; last = now;
-  if (started) { updatePlayer(dt); updateFishing(dt, t); } else { yaw += dt * 0.15; player.obj.rotation.y = t; }
+  if (started) { updatePlayer(dt); updateFishing(dt, t); updateRemotes(dt); netTick(dt); } else { yaw += dt * 0.15; player.obj.rotation.y = t; }
   for (const s of shadows) { s.a += s.v * dt; s.m.position.x = POND.x + Math.cos(s.a) * s.r; s.m.position.z = POND.z + Math.sin(s.a) * s.r; s.m.rotation.y = -s.a + (s.v > 0 ? -Math.PI / 2 : Math.PI / 2); }
   for (let i = puffs.length - 1; i >= 0; i--) { const q = puffs[i]; q.life -= dt; q.v.y -= 10 * dt; q.m.position.addScaledVector(q.v, dt); q.m.scale.setScalar(Math.max(0.01, q.life * 1.8)); if (q.life <= 0) { scene.remove(q.m); puffs.splice(i, 1); } }
   for (let i = ripples.length - 1; i >= 0; i--) { const r = ripples[i]; r.life -= dt * 1.2; const s = 0.3 + (1 - r.life) * 2.2; r.m.scale.set(s, 1, s); r.m.material.opacity = Math.max(0, r.life) * 0.8; if (r.life <= 0) { scene.remove(r.m); ripples.splice(i, 1); } }
@@ -452,24 +504,26 @@ function renderDex() {
 $("dexbtn").addEventListener("click", () => { renderDex(); $("dex").classList.remove("hidden"); });
 $("dexclose").addEventListener("click", () => $("dex").classList.add("hidden"));
 
-/* ---------- start UI ---------- */
-const skinBox = $("skins");
-SKINS.forEach((s, i) => {
-  const b = document.createElement("button"); b.setAttribute("role", "radio"); b.setAttribute("aria-label", s.name);
-  b.style.background = "#" + s.color.toString(16).padStart(6, "0");
-  b.addEventListener("click", () => { setSkin(i); [...skinBox.children].forEach((c, j) => c.setAttribute("aria-checked", j === i)); });
-  skinBox.appendChild(b);
-});
-setSkin(player.color);
-[...skinBox.children].forEach((c, j) => c.setAttribute("aria-checked", j === player.color));
-$("howto").textContent = TOUCH
-  ? "탭: 이동 · 드래그: 카메라 · 🎣 길게 눌러 던지기 → 입질에 탭 → 누르고 감기"
-  : "클릭/WASD: 이동 · 드래그: 카메라 · Space(길게): 던지기 → 입질에 Space → 누르고 감기";
+/* ---------- 시작 화면(닉네임·서버 선택) ---------- */
 camera.position.set(0, 8, 14);
-$("go").addEventListener("click", () => {
+setSkin(player.color); // 로비 뒤에서 미리보기
+runLobby({
+  root: $("start"), title: "🎣 겨울 호수 낚시", subtitle: "펭귄이 되어 크리스마스 물고기를 잡아요.",
+  howto: TOUCH ? "탭: 이동 · 드래그: 카메라 · 🎣 길게 눌러 던지기 → 입질에 탭 → 누르고 감기" : "클릭/WASD: 이동 · 드래그: 카메라 · Space(길게): 던지기 → 입질에 Space → 누르고 감기",
+  onSkin: i => setSkin(i),
+}).then(sess => {
+  player.name = sess.name; setSkin(sess.skin);
+  player.pos.set((Math.random() - 0.5) * 10, 0, -1 + Math.random() * 3); player.obj.position.copy(player.pos);
   initAudio(); started = true; yaw = Math.PI; pitch = 0.55;
-  $("start").classList.add("hidden"); $("hud").classList.remove("hidden"); setHint(idleHint());
-  toast("호수를 향해 낚싯줄을 던져요", 2500);
+  $("hud").classList.remove("hidden"); setHint(idleHint());
+  net = sess.net;
+  if (net) {
+    net.serverName = sess.welcome.server.name; net.onmessage = onNet;
+    net.onclose = () => { toast("서버와 연결이 끊겼어요. 혼자 계속해요."); clearRemotes(); net = null; renderPlayers(); };
+    sess.welcome.players.filter(p => p.id !== net.id).forEach(addRemote);
+    toast(net.serverName + "에 입장했어요", 2500);
+  } else toast("호수를 향해 낚싯줄을 던져요", 2500);
+  renderPlayers();
 });
 requestAnimationFrame(frame);
-window.__fish = { state: () => ({ started, st: fs.st, pts: bank.pts, cnt: bank.cnt, fish: fs.fish && fs.fish.id, prog: fs.prog, tens: fs.tens, prints: prints.count }), fastBite: () => { if (fs.st === "waiting") fs.biteT = 0.05; } };
+window.__fish = { remote: id => { const r = remotes.get(id); return r && { b: r.b, bobVisible: r.bob.visible, score: r.score }; }, state: () => ({ started, online: !!net, remotes: remotes.size, name: player.name, id: net && net.id, st: fs.st, pts: bank.pts, cnt: bank.cnt, fish: fs.fish && fs.fish.id, prog: fs.prog, tens: fs.tens, prints: prints.count }), fastBite: () => { if (fs.st === "waiting") fs.biteT = 0.05; } };

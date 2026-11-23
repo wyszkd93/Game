@@ -1,10 +1,8 @@
 import * as THREE from "three";
+import { SKINS, createPenguin, animatePenguin, hitPenguin, makeNameLabel } from "../../shared/penguin.js";
+import { runLobby } from "../../shared/lobby.js";
 
 const $ = id => document.getElementById(id);
-const SKINS = [
-  { name: "빨강", color: 0xe8454b }, { name: "초록", color: 0x3fbf7f },
-  { name: "파랑", color: 0x4aa3ff }, { name: "분홍", color: 0xff8fc2 },
-];
 const NPC_COLORS = [0xffb84a, 0x9b7bff, 0x35c7c0, 0xff7b54];
 const G = 18, FIELD = 46, SPEED = 6, TOUCH = matchMedia("(pointer: coarse)").matches;
 const store = {
@@ -154,26 +152,9 @@ snowPts.frustumCulled = false;
 scene.add(snowPts);
 
 /* ---------- characters ---------- */
-function makeChar(color) {
-  const g = new THREE.Group(), body = new THREE.Group();
-  body.add(mesh(new THREE.SphereGeometry(0.55, 16, 12), color, 0, 0.62, 0, 1.08));
-  body.add(mesh(new THREE.SphereGeometry(0.4, 16, 12), 0xffe3c9, 0, 1.4, 0, 1.08));
-  const hat = mesh(new THREE.ConeGeometry(0.4, 0.7, 12), color, 0, 1.95, 0, 1.08);
-  body.add(hat);
-  body.add(mesh(new THREE.SphereGeometry(0.12, 8, 6), 0xffffff, 0, 2.35, 0));
-  body.add(mesh(new THREE.TorusGeometry(0.4, 0.09, 8, 16), 0xffffff, 0, 1.12, 0)).children.at(-1).rotation.x = Math.PI / 2;
-  const eyeM = new THREE.MeshBasicMaterial({ color: 0x1a2340 });
-  for (const sx of [-1, 1]) { const e = new THREE.Mesh(new THREE.SphereGeometry(0.05, 6, 6), eyeM); e.position.set(sx * 0.14, 1.45, 0.36); body.add(e); }
-  g.add(body);
-  const feet = [-1, 1].map(sx => { const f = mesh(new THREE.BoxGeometry(0.28, 0.16, 0.4), 0x3a3a4a, sx * 0.22, 0.08, 0.05, 1.1); g.add(f); return f; });
-  const blob = new THREE.Mesh(new THREE.CircleGeometry(0.7, 16).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x5b6f99, transparent: true, opacity: 0.35 }));
-  blob.position.y = 0.03; g.add(blob);
-  g.userData = { body, feet };
-  scene.add(g);
-  return g;
-}
+function makeChar(color) { const g = createPenguin(color); scene.add(g); return g; }
 
-const player = { obj: null, pos: new THREE.Vector3(0, 0, 8), facing: 0, target: null, stride: 0, step: 0, wobble: 0, cd: 0, color: store.get("xmas-skin", 0) };
+const player = { obj: null, pos: new THREE.Vector3(0, 0, 8), facing: 0, target: null, stride: 0, step: 0, wobble: 0, cd: 0, moving: false, name: "", color: store.get("xmas-skin", 0) };
 const npcs = [];
 let hits = 0, got = 0;
 
@@ -181,14 +162,19 @@ function setPlayerSkin(i) {
   player.color = i; store.set("xmas-skin", i);
   if (player.obj) scene.remove(player.obj);
   player.obj = makeChar(SKINS[i].color);
+  if (player.name) player.obj.add(makeNameLabel(player.name, { me: true }));
   player.obj.position.copy(player.pos);
 }
-NPC_COLORS.forEach((c, i) => {
-  const o = makeChar(c);
-  const a = i / NPC_COLORS.length * Math.PI * 2 + 0.7;
-  const n = { obj: o, pos: new THREE.Vector3(Math.cos(a) * 14, 0, Math.sin(a) * 14 - 4), facing: 0, goal: null, wait: Math.random() * 2, throwT: 2 + Math.random() * 3, wobble: 0, stride: 0 };
-  o.position.copy(n.pos); npcs.push(n);
-});
+function spawnNpcs() { // 혼자 하기에서만 연습 상대(NPC)가 나옵니다
+  if (npcs.length) return;
+  NPC_COLORS.forEach((c, i) => {
+    const o = makeChar(c);
+    const a = i / NPC_COLORS.length * Math.PI * 2 + 0.7;
+    const n = { obj: o, pos: new THREE.Vector3(Math.cos(a) * 14, 0, Math.sin(a) * 14 - 4), facing: 0, goal: null, wait: Math.random() * 2, throwT: 2 + Math.random() * 3, wobble: 0, stride: 0 };
+    o.position.copy(n.pos); npcs.push(n);
+  });
+}
+function clearNpcs() { npcs.forEach(n => scene.remove(n.obj)); npcs.length = 0; }
 
 /* ---------- 발자국 / 눈 자국 (InstancedMesh 링 버퍼) ---------- */
 function ring(max, geo, color, opacity) {
@@ -254,13 +240,71 @@ function puff(p, n = 8) {
     puffs.push({ m, v: new THREE.Vector3((Math.random() - 0.5) * 4, Math.random() * 4, (Math.random() - 0.5) * 4), life: 0.5 });
   }
 }
+function spawnBall(start, v, owner) {
+  const m = outlined(new THREE.Mesh(ballGeo, lambert(0xffffff)), 1.15);
+  m.position.copy(start); scene.add(m);
+  balls.push({ m, v, owner });
+}
 function throwBall(from, to, owner) {
   const start = new THREE.Vector3(from.x, 1.6, from.z), d = new THREE.Vector3().subVectors(to, start);
   const dist = Math.hypot(d.x, d.z), t = Math.min(1.3, Math.max(0.45, dist / 14));
   const v = new THREE.Vector3(d.x / t, (d.y + 0.5 * G * t * t) / t, d.z / t); // vy = (Δy + ½·g·t²)/t
-  const m = outlined(new THREE.Mesh(ballGeo, lambert(0xffffff)), 1.15);
-  m.position.copy(start); scene.add(m);
-  balls.push({ m, v, owner });
+  spawnBall(start, v, owner);
+  return { start, v };
+}
+
+/* ---------- 멀티플레이: 다른 유저(펭귄) ---------- */
+let net = null;
+const remotes = new Map();
+const hudPlayers = $("players");
+function toast(msg, ms = 2200) { const t = $("toast"); t.textContent = msg; t.classList.add("on"); clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove("on"), ms); }
+function renderPlayers() {
+  hudPlayers.textContent = "";
+  if (!net) { hudPlayers.classList.add("hidden"); return; }
+  hudPlayers.classList.remove("hidden");
+  const rows = [{ name: player.name, hits: hits, me: true }, ...[...remotes.values()].map(r => ({ name: r.name, hits: r.hits }))].sort((a, b) => b.hits - a.hits);
+  const head = document.createElement("div"); head.textContent = (net.serverName || "서버") + " · " + (remotes.size + 1) + "명"; head.style.fontWeight = "700"; hudPlayers.append(head);
+  rows.slice(0, 6).forEach(r => { const d = document.createElement("div"); if (r.me) d.className = "me"; d.textContent = r.name + "  " + r.hits; hudPlayers.append(d); });
+}
+function addRemote(p) {
+  if (remotes.has(p.id)) return;
+  const obj = createPenguin(SKINS[p.skin % 4].color); obj.add(makeNameLabel(p.name)); scene.add(obj);
+  const r = { id: p.id, name: p.name, hits: p.hits || 0, obj, pos: new THREE.Vector3(p.x, 0, p.z), tx: p.x, tz: p.z, facing: p.f, tf: p.f, moving: !!p.mv };
+  obj.position.copy(r.pos); remotes.set(p.id, r); renderPlayers();
+}
+function removeRemote(id) { const r = remotes.get(id); if (r) { scene.remove(r.obj); remotes.delete(id); renderPlayers(); } }
+function clearRemotes() { [...remotes.keys()].forEach(removeRemote); }
+const angDiff = (a, b) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
+function updateRemotes(dt) {
+  for (const r of remotes.values()) {
+    const k = Math.min(1, dt * 12);
+    r.pos.x += (r.tx - r.pos.x) * k; r.pos.z += (r.tz - r.pos.z) * k; r.facing += angDiff(r.tf, r.facing) * k;
+    r.obj.position.copy(r.pos);
+    animatePenguin(r.obj, { moving: r.moving || Math.hypot(r.tx - r.pos.x, r.tz - r.pos.z) > 0.15, dt, facing: r.facing });
+  }
+}
+function onNet(m) {
+  switch (m.t) {
+    case "join": addRemote(m.p); toast(m.p.name + " 님이 입장했어요", 1800); break;
+    case "leave": { const r = remotes.get(m.id); if (r) toast(r.name + " 님이 나갔어요", 1800); removeRemote(m.id); break; }
+    case "s": { const r = remotes.get(m.id); if (r) { r.tx = m.x; r.tz = m.z; r.tf = m.f; r.moving = !!m.mv; } break; }
+    case "throw": {
+      spawnBall(new THREE.Vector3(m.sx, m.sy, m.sz), new THREE.Vector3(m.vx, m.vy, m.vz), "remote:" + m.id);
+      if (Math.hypot(m.sx - player.pos.x, m.sz - player.pos.z) < 16) sfx.throw();
+      break;
+    }
+    case "hit": {
+      const victim = remotes.get(m.to); if (victim) hitPenguin(victim.obj);
+      if (m.from === net.id) { hits = m.hits; hudHits.textContent = hits; } else { const r = remotes.get(m.from); if (r) r.hits = m.hits; }
+      renderPlayers(); break;
+    }
+  }
+}
+let netT = 0;
+function netTick(dt) {
+  if (!net) return;
+  netT += dt; if (netT < 0.1) return; netT = 0;
+  net.send({ t: "s", x: +player.pos.x.toFixed(2), z: +player.pos.z.toFixed(2), f: +player.facing.toFixed(2), mv: player.moving ? 1 : 0 });
 }
 
 /* ---------- input ---------- */
@@ -322,23 +366,13 @@ function doThrow() {
     if (!target) target = new THREE.Vector3(player.pos.x + Math.sin(player.facing) * 10, 0, player.pos.z + Math.cos(player.facing) * 10);
   }
   player.facing = Math.atan2(target.x - player.pos.x, target.z - player.pos.z);
-  throwBall(player.pos, target, "player");
+  const th = throwBall(player.pos, target, "player");
+  if (net) net.send({ t: "throw", sx: th.start.x, sy: th.start.y, sz: th.start.z, vx: th.v.x, vy: th.v.y, vz: th.v.z });
   sfx.throw();
 }
 
 /* ---------- update ---------- */
 const forward = new THREE.Vector3(), tmp = new THREE.Vector3();
-function walkAnim(ch, moving, dt, t) {
-  const { body, feet } = ch.obj.userData;
-  if (moving) ch.stride += dt * 12;
-  const s = Math.sin(ch.stride);
-  body.position.y = moving ? Math.abs(s) * 0.08 : 0;
-  feet[0].position.z = 0.05 + (moving ? s * 0.18 : 0);
-  feet[1].position.z = 0.05 + (moving ? -s * 0.18 : 0);
-  ch.wobble = Math.max(0, ch.wobble - dt);
-  body.rotation.z = ch.wobble > 0 ? Math.sin(ch.wobble * 40) * 0.35 * (ch.wobble / 0.5) : 0;
-  ch.obj.rotation.y = ch.facing;
-}
 function updatePlayer(dt, t) {
   player.cd -= dt;
   let mx = 0, mz = 0;
@@ -368,8 +402,9 @@ function updatePlayer(dt, t) {
       sfx.step();
     }
   }
+  player.moving = moving;
   player.obj.position.copy(player.pos);
-  walkAnim(player, moving, dt, t);
+  animatePenguin(player.obj, { moving, dt, facing: player.facing });
 }
 function updateNpcs(dt, t) {
   for (const n of npcs) {
@@ -399,7 +434,7 @@ function updateNpcs(dt, t) {
       }
     }
     n.obj.position.copy(n.pos);
-    walkAnim(n, moving, dt, t);
+    animatePenguin(n.obj, { moving, dt, facing: n.facing });
   }
 }
 const hudHits = $("hits"), hudGot = $("got");
@@ -410,12 +445,16 @@ function updateBalls(dt) {
     b.m.position.addScaledVector(b.v, dt);
     const p = b.m.position;
     let dead = false;
-    const targets = b.owner === "player" ? npcs : [player];
+    const mine = b.owner === "player";
+    const targets = mine ? [...npcs, ...remotes.values()] : [player];
     for (const c of targets) {
       if (Math.hypot(p.x - c.pos.x, p.z - c.pos.z) < 0.7 && p.y > 0.1 && p.y < 2.3) {
-        c.wobble = 0.5; dead = true; puff(p, 10); sfx.hit();
-        if (c === player) { got++; hudGot.textContent = got; } else { hits++; hudHits.textContent = hits; store.set("xmas-hits", Math.max(store.get("xmas-hits", 0), hits)); }
-        break;
+        hitPenguin(c.obj); dead = true; puff(p, 10); sfx.hit();
+        if (c === player) {
+          got++; hudGot.textContent = got;
+          if (net && typeof b.owner === "string" && b.owner.startsWith("remote:")) net.send({ t: "hit", by: Number(b.owner.slice(7)) });
+        } else if (npcs.includes(c)) { hits++; hudHits.textContent = hits; store.set("xmas-hits", Math.max(store.get("xmas-hits", 0), hits)); }
+        break; // 다른 유저를 맞힌 점수는 맞은 쪽이 서버에 신고해 집계됩니다
       }
     }
     if (!dead && p.y <= 0.2) {
@@ -454,7 +493,7 @@ function updateCamera() {
 let last = performance.now();
 function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000), t = now / 1000; last = now;
-  if (started) { updatePlayer(dt, t); updateNpcs(dt, t); updateBalls(dt); }
+  if (started) { updatePlayer(dt, t); updateNpcs(dt, t); updateBalls(dt); updateRemotes(dt); netTick(dt); }
   else { yaw += dt * 0.15; player.obj.rotation.y = t; }
   updateSnow(dt);
   treeLights.forEach((m, i) => m.scale.setScalar(0.8 + 0.4 * (0.5 + 0.5 * Math.sin(t * 3 + i))));
@@ -464,25 +503,27 @@ function frame(now) {
   requestAnimationFrame(frame);
 }
 
-/* ---------- UI ---------- */
-const skinBox = $("skins");
-SKINS.forEach((s, i) => {
-  const b = document.createElement("button");
-  b.setAttribute("role", "radio"); b.setAttribute("aria-label", s.name);
-  b.style.background = "#" + s.color.toString(16).padStart(6, "0");
-  b.addEventListener("click", () => { setPlayerSkin(i); [...skinBox.children].forEach((c, j) => c.setAttribute("aria-checked", j === i)); });
-  skinBox.appendChild(b);
-});
-setPlayerSkin(player.color);
-[...skinBox.children].forEach((c, j) => c.setAttribute("aria-checked", j === player.color));
-$("howto").textContent = TOUCH
-  ? "탭: 이동 · 드래그: 카메라 회전 · ❄️ 버튼: 눈덩이 던지기"
-  : "클릭: 이동 · 드래그: 카메라 · WASD: 걷기 · 마우스 조준 후 Space/F: 던지기 · 휠: 확대";
+/* ---------- 시작 화면(닉네임·서버 선택) ---------- */
 $("hint").textContent = TOUCH ? "탭해서 이동 · ❄️로 던지기" : "Space 또는 F로 눈덩이 던지기";
 camera.position.set(0, 10, 20);
-$("go").addEventListener("click", () => {
-  initAudio(); started = true; yaw = 0; pitch = 0.75;
-  $("start").classList.add("hidden"); $("hud").classList.remove("hidden");
+setPlayerSkin(player.color); // 로비 뒤에서 미리보기
+runLobby({
+  root: $("start"), title: "🎄 눈 내리는 마을", subtitle: "펭귄이 되어 친구들과 눈싸움을 해요.",
+  howto: TOUCH ? "탭: 이동 · 드래그: 카메라 · ❄️ 버튼: 눈덩이 던지기" : "클릭: 이동 · 드래그: 카메라 · WASD: 걷기 · 마우스 조준 후 Space/F: 던지기 · 휠: 확대",
+  onSkin: i => setPlayerSkin(i),
+}).then(sess => {
+  player.name = sess.name; setPlayerSkin(sess.skin);
+  player.pos.set((Math.random() - 0.5) * 10, 0, 8 + Math.random() * 4); player.obj.position.copy(player.pos);
+  initAudio(); started = true; yaw = 0; pitch = 0.75; $("hud").classList.remove("hidden");
+  net = sess.net;
+  if (net) {
+    net.serverName = sess.welcome.server.name;
+    net.onmessage = onNet;
+    net.onclose = () => { toast("서버와 연결이 끊겼어요. 혼자 계속해요."); clearRemotes(); net = null; renderPlayers(); spawnNpcs(); };
+    sess.welcome.players.filter(p => p.id !== net.id).forEach(addRemote);
+    toast(net.serverName + "에 입장했어요");
+  } else spawnNpcs();
+  renderPlayers();
 });
 requestAnimationFrame(frame);
-window.__xmas = { state: () => ({ started, hits, got, pos: player.pos.toArray(), balls: balls.length, prints: prints.count }) };
+window.__xmas = { state: () => ({ started, name: player.name, online: !!net, remotes: remotes.size, hits, got, pos: player.pos.toArray(), balls: balls.length, prints: prints.count, id: net && net.id }), screen: (x, z) => { const v = new THREE.Vector3(x, 0, z).project(camera); return [(v.x + 1) / 2 * innerWidth, (1 - v.y) / 2 * innerHeight]; }, remote: id => { const r = remotes.get(id); return r && [r.pos.x, r.pos.z]; } };
