@@ -1,0 +1,24 @@
+@font-face { font-family:"Galmuri11"; src:url("fonts/Galmuri11.woff2") format("woff2"); font-weight:400; font-display:swap; }
+@font-face { font-family:"Galmuri11"; src:url("fonts/Galmuri11-Bold.woff2") format("woff2"); font-weight:700; font-display:swap; }
+:root { --ink:#16213e; --red:#e8454b; --red-d:#a82a30; --panel:rgba(255,255,255,.88); }
+* { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+html, body { margin:0; height:100%; overflow:hidden; background:#cfe3ff; color:var(--ink); font-family:"Galmuri11", system-ui, sans-serif; touch-action:none; user-select:none; -webkit-user-select:none; }
+#view { position:fixed; inset:0; width:100%; height:100%; display:block; }
+.hidden { display:none !important; }
+#hud > * { position:fixed; }
+#score { top:max(12px, env(safe-area-inset-top)); left:12px; background:var(--panel); border-radius:10px; padding:8px 12px; font-size:14px; }
+#mute { top:max(12px, env(safe-area-inset-top)); right:12px; width:44px; height:44px; border-radius:50%; border:0; background:var(--panel); font-size:20px; cursor:pointer; }
+#hint { bottom:max(14px, env(safe-area-inset-bottom)); left:50%; transform:translateX(-50%); background:var(--panel); border-radius:10px; padding:6px 12px; font-size:12px; white-space:nowrap; pointer-events:none; }
+#throw { right:max(18px, env(safe-area-inset-right)); bottom:calc(max(14px, env(safe-area-inset-bottom)) + 40px); width:76px; height:76px; border-radius:50%; border:0; border-bottom:5px solid var(--red-d); background:var(--red); font-size:32px; cursor:pointer; }
+#throw:active { transform:translateY(2px); border-bottom-width:3px; }
+.overlay { position:fixed; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; text-align:center; background:rgba(207,227,255,.82); padding:24px; }
+.overlay h1 { margin:0; font-size:30px; }
+.overlay p { margin:0; line-height:1.6; font-size:14px; }
+.small { font-size:12px !important; opacity:.75; }
+#skins { display:flex; gap:12px; }
+#skins button { width:48px; height:48px; border-radius:50%; border:3px solid #fff; cursor:pointer; box-shadow:0 2px 0 rgba(0,0,0,.25); }
+#skins button[aria-checked="true"] { outline:4px solid var(--ink); }
+.primary { font:inherit; font-weight:700; font-size:18px; color:#fff; background:var(--red); border:0; border-bottom:4px solid var(--red-d); border-radius:10px; padding:12px 32px; cursor:pointer; }
+.primary:active { transform:translateY(2px); border-bottom-width:2px; }
+#toast { top:max(60px, calc(env(safe-area-inset-top) + 56px)); left:50%; transform:translateX(-50%); background:var(--ink); color:#fff; border-radius:10px; padding:8px 14px; font-size:14px; opacity:0; transition:opacity .2s; pointer-events:none; white-space:nowrap; }
+#toast.on { opacity:1; }

@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="description" content="눈 내리는 겨울 호수에서 물고기를 낚는 3D 크리스마스 낚시 게임">
+<meta name="theme-color" content="#cfe3ff">
+<title>겨울 호수 낚시</title>
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="../shared/lobby.css">
+<script type="importmap">{ "imports": { "three": "../christmas/lib/three.module.min.js", "three/addons/": "../christmas/lib/addons/" } }</script>
+</head>
+<body>
+<canvas id="view"></canvas>
+
+<div id="hud" class="hidden">
+  <div id="score">🎣 점수 <b id="pts">0</b> · 잡은 수 <b id="cnt">0</b></div>
+  <div id="topright">
+    <button id="dexbtn" aria-label="도감 열기">📖</button>
+    <button id="mute" aria-label="소리 켜기/끄기">🔊</button>
+  </div>
+  <div id="players" class="hidden"></div>
+  <div id="toast"></div>
+  <div id="power" class="hidden"><i></i></div>
+  <div id="reel" class="hidden" aria-label="낚시 바: 누르면 초록 칸이 오른쪽으로, 떼면 왼쪽으로 움직여요">
+    <div id="fmeter"><i id="fprog"></i></div>
+    <div id="fbar"><div id="fzone"></div><img id="ffish" alt=""></div>
+  </div>
+  <div id="hint"></div>
+  <button id="act" aria-label="낚시 동작">🎣</button>
+</div>
+
+<div id="result" class="hidden"><div id="rnew" class="hidden">NEW!</div><img id="rimg" alt=""><div id="rtier"></div><div id="rname"></div><div id="rpts"></div></div>
+
+<div id="dex" class="overlay hidden">
+  <h2 id="dextitle">📖 물고기 도감</h2>
+  <ul id="dexlist"></ul>
+  <button id="dexclose" class="primary">닫기</button>
+</div>
+
+<div id="start" class="overlay"></div>
+<script type="module" src="js/main.js"></script>
+</body>
+</html>
