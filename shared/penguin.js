@@ -9,7 +9,12 @@ export const SKINS = [
 ];
 
 const outlineMat = new THREE.MeshBasicMaterial({ color: 0x191c44, side: THREE.BackSide });
-const lambert = c => new THREE.MeshLambertMaterial({ color: c });
+// 만화풍(셀) 음영: 밝기를 3단계로 끊어 평평한 일러스트 느낌을 냅니다
+const toonGradient = (() => {
+  const t = new THREE.DataTexture(new Uint8Array([170, 170, 170, 255, 225, 225, 225, 255, 255, 255, 255, 255]), 3, 1, THREE.RGBAFormat);
+  t.minFilter = t.magFilter = THREE.NearestFilter; t.needsUpdate = true; return t;
+})();
+const lambert = c => new THREE.MeshToonMaterial({ color: c, gradientMap: toonGradient });
 function part(geo, color, x = 0, y = 0, z = 0, outline = 1.06) {
   const m = new THREE.Mesh(geo, lambert(color));
   m.position.set(x, y, z);
