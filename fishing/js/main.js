@@ -218,11 +218,15 @@ function pickFish() {
   for (const f of FISH) { r -= f.w; if (r <= 0) return f; }
   return FISH[0];
 }
+/** 던지는 방향. 기본은 지금 카메라가 보는 방향이고, 마우스가 시야 앞쪽(약 ±60°)을 가리키고 있을 때만 그쪽으로 조준합니다.
+ *  (마우스가 화면 아래쪽 땅에 있다고 펭귄이 뒤로 돌아서지 않도록) */
 function aimDir() {
-  let tx, tz;
-  if (mouseSeen && aim) { tx = aim.x - player.pos.x; tz = aim.z - player.pos.z; }
-  else { tx = POND.x - player.pos.x; tz = POND.z - player.pos.z; }
-  const l = Math.hypot(tx, tz) || 1; return { x: tx / l, z: tz / l };
+  const f = { x: -Math.sin(yaw), z: -Math.cos(yaw) }; // 카메라가 바라보는 수평 방향
+  if (mouseSeen && aim) {
+    const tx = aim.x - player.pos.x, tz = aim.z - player.pos.z, l = Math.hypot(tx, tz);
+    if (l > 1.5) { const ux = tx / l, uz = tz / l; if (ux * f.x + uz * f.z > 0.5) return { x: ux, z: uz }; }
+  }
+  return f;
 }
 
 function actionDown() {
@@ -282,7 +286,7 @@ function finish(ok, reason) {
   } else { toast(reason); sfx.lose(); fs.resT = 0.8; }
   setHint("");
 }
-function idleHint() { return TOUCH ? "탭해서 이동 · 🎣 길게 눌러 던지기" : "Space(길게)로 던지기 · 클릭으로 이동"; }
+function idleHint() { return TOUCH ? "탭해서 이동 · 🎣 길게 눌러 보는 쪽으로 던지기" : "Space(길게)로 보는 쪽으로 던지기 · 클릭으로 이동"; }
 
 function updateFishing(dt, t) {
   const tip = rodTip(new THREE.Vector3());
@@ -394,7 +398,7 @@ function netTick(dt) {
 
 /* ---------- input ---------- */
 const keys = {};
-let yaw = Math.PI, pitch = 0.55, dist = 12, aim = null, mouseSeen = false, started = false;
+let yaw = 0, pitch = 0.55, dist = 12, aim = null, mouseSeen = false, started = false;
 const ray = new THREE.Raycaster(), ndc = new THREE.Vector2(), plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
 function groundAt(cx, cy) {
   ndc.set(cx / innerWidth * 2 - 1, -(cy / innerHeight) * 2 + 1); ray.setFromCamera(ndc, camera);
@@ -467,9 +471,6 @@ function updatePlayer(dt) {
 }
 function updateCamera(dt) {
   camLock = Math.max(0, camLock - dt);
-  if (fs.st !== "idle" && camLock <= 0) { // 낚시 중에는 호수가 보이도록 캐릭터 뒤로 회전
-    const target = player.facing + Math.PI; let d = target - yaw; d = Math.atan2(Math.sin(d), Math.cos(d)); yaw += d * Math.min(1, dt * 3);
-  }
   const cp = Math.cos(pitch), tx = player.pos.x, ty = 1.3, tz = player.pos.z;
   tmp.set(tx + Math.sin(yaw) * cp * dist, ty + Math.sin(pitch) * dist, tz + Math.cos(yaw) * cp * dist);
   camera.position.lerp(tmp, 0.2); camera.lookAt(tx, ty, tz);
@@ -477,7 +478,7 @@ function updateCamera(dt) {
 let last = performance.now();
 function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000), t = now / 1000; last = now;
-  setViewYaw(yaw); // 보는 각도에 맞는 펭귄 그림을 고르기 위해 카메라 방향을 알려 줌
+  setViewYaw(yaw, pitch); // 보는 각도에 맞는 펭귄 그림을 고르고, 내려다보는 각도만큼 그림판을 기울이기 위해 카메라 방향을 알려 줌
   if (started) { updatePlayer(dt); updateFishing(dt, t); updateRemotes(dt); netTick(dt); } else { yaw += dt * 0.15; animatePenguin(player.obj, { moving: false, dt, facing: t }); }
   for (const s of shadows) { s.a += s.v * dt; s.m.position.x = POND.x + Math.cos(s.a) * s.r; s.m.position.z = POND.z + Math.sin(s.a) * s.r; s.m.rotation.y = -s.a + (s.v > 0 ? -Math.PI / 2 : Math.PI / 2); }
   for (let i = puffs.length - 1; i >= 0; i--) { const q = puffs[i]; q.life -= dt; q.v.y -= 10 * dt; q.m.position.addScaledVector(q.v, dt); q.m.scale.setScalar(Math.max(0.01, q.life * 1.8)); if (q.life <= 0) { scene.remove(q.m); puffs.splice(i, 1); } }
@@ -521,7 +522,7 @@ runLobby({
 }).then(sess => {
   player.name = sess.name; setSkin(sess.skin);
   player.pos.set((Math.random() - 0.5) * 10, 0, -1 + Math.random() * 3); player.obj.position.copy(player.pos);
-  initAudio(); started = true; yaw = Math.PI; pitch = 0.55;
+  initAudio(); started = true; yaw = 0; pitch = 0.55;
   $("hud").classList.remove("hidden"); setHint(idleHint());
   net = sess.net;
   if (net) {
@@ -533,4 +534,4 @@ runLobby({
   renderPlayers();
 });
 requestAnimationFrame(frame);
-window.__fish = { remote: id => { const r = remotes.get(id); return r && { b: r.b, bobVisible: r.bob.visible, score: r.score }; }, state: () => ({ started, online: !!net, remotes: remotes.size, name: player.name, id: net && net.id, st: fs.st, held, pts: bank.pts, cnt: bank.cnt, fish: fs.fish && fs.fish.id, prog: fs.prog, bar: fs.bar && { zx: fs.bar.zx, zw: fs.bar.zw, zv: fs.bar.zv, fx: fs.bar.fx, inZone: fs.bar.inZone }, prints: prints.count }), fastBite: () => { if (fs.st === "waiting") fs.biteT = 0.05; }, setFish: id => { const f = FISH.find(x => x.id === id); if (f) { fs.fish = f; new Image().src = f.img; } }, count: FISH.length, setHeld: v => { held = !!v; }, forceNext: id => { forcedFish = FISH.find(x => x.id === id) || null; } };
+window.__fish = { remote: id => { const r = remotes.get(id); return r && { b: r.b, bobVisible: r.bob.visible, score: r.score }; }, state: () => ({ started, online: !!net, remotes: remotes.size, name: player.name, id: net && net.id, st: fs.st, held, yaw, facing: player.facing, pts: bank.pts, cnt: bank.cnt, fish: fs.fish && fs.fish.id, prog: fs.prog, bar: fs.bar && { zx: fs.bar.zx, zw: fs.bar.zw, zv: fs.bar.zv, fx: fs.bar.fx, inZone: fs.bar.inZone }, prints: prints.count }), fastBite: () => { if (fs.st === "waiting") fs.biteT = 0.05; }, setFish: id => { const f = FISH.find(x => x.id === id); if (f) { fs.fish = f; new Image().src = f.img; } }, count: FISH.length, setPos: (x, z) => { player.pos.set(x, 0, z); }, setHeld: v => { held = !!v; }, forceNext: id => { forcedFish = FISH.find(x => x.id === id) || null; } };

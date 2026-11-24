@@ -49,9 +49,10 @@ if (!MODE_3D) {
   } catch (e) { sprites = null; console.info("펭귄 그림을 읽지 못해 도형 펭귄을 사용합니다", e && e.message); }
 }
 export const usingSprites = !!sprites;
-let viewYaw = 0;
+let viewYaw = 0, viewPitch = 0;
+const MAX_TILT = 0.95; // 그림판을 뒤로 기울이는 최대 각도(라디안, 약 54°). 더 기울이면 누워 보임
 /** 카메라가 캐릭터를 바라보는 방향(각도). 게임이 매 프레임 알려 주면 보는 각도에 맞는 그림이 골라집니다. */
-export function setViewYaw(y) { viewYaw = y; }
+export function setViewYaw(y, pitch = 0) { viewYaw = y; viewPitch = pitch; }
 const planeGeo = new THREE.PlaneGeometry(1, 1).translate(0, 0.5, 0); // 발끝이 기준점
 const wrapAngle = a => Math.atan2(Math.sin(a), Math.cos(a));
 /** rel = 캐릭터가 바라보는 방향 − 카메라 방향. 0이면 정면, 양수면 화면 오른쪽을 향함. 그림은 3/4=오른쪽, 옆=왼쪽을 향하게 그려져 있음 */
@@ -268,6 +269,13 @@ export function animatePenguin(g, { moving, dt, facing }) {
       }
     }
     u.plane.rotation.y = viewYaw - f;                                 // 월드 기준으로는 항상 카메라를 향함
+    const tilt = Math.min(viewPitch, MAX_TILT);
+    u.plane.rotation.x = -tilt;                                        // 카메라가 내려다보는 만큼 발끝을 축으로 뒤로 기울여, 위에서 봐도 납작해 보이지 않게 함
+    if (u.label === undefined) u.label = g.children.find(c => c.userData && c.userData.nameLabel) || null;
+    if (u.label) { // 이름표: 기울어진 그림의 머리 위 (뒤로 기운 만큼 높이는 낮아지고 카메라 반대쪽으로 밀려남)
+      const back = SPRITE_H * Math.sin(tilt), wx = -Math.sin(viewYaw) * back, wz = -Math.cos(viewYaw) * back;
+      u.label.position.set(wx * Math.cos(f) - wz * Math.sin(f), SPRITE_H * Math.cos(tilt) + 0.55, wx * Math.sin(f) + wz * Math.cos(f));
+    }
     u.plane.rotation.z = (moving ? s * 0.12 : 0) + hit;               // 화면에서 보이는 좌우 뒤뚱임(발끝 기준)
     u.body.position.y = moving ? Math.abs(s) * 0.07 : 0;
     return;
@@ -304,6 +312,6 @@ export function makeNameLabel(text, { me = false } = {}) {
   x.fillStyle = "#fff"; x.fillText(text, 128, 33, 232);
   const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
   const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true }));
-  s.scale.set(2.4, 0.6, 1); s.position.y = 3.45; s.renderOrder = 10;
+  s.scale.set(2.4, 0.6, 1); s.position.y = 3.45; s.renderOrder = 10; s.userData.nameLabel = true;
   return s;
 }
