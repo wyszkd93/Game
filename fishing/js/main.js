@@ -256,23 +256,34 @@ function landed() {
   fs.st = "waiting"; fs.biteT = 2 + Math.random() * 5; fs.bob = 0;
   splash(bobber.position, 10); ripple(bobber.position); sfx.splash(); setHint("찌를 지켜보세요 (버튼: 줄 감기)");
 }
-function retract(msg) { fs.st = "idle"; bobber.visible = line.visible = false; $("reel").classList.add("hidden"); if (msg) toast(msg); setHint(idleHint()); }
+function retract(msg) { fs.st = "idle"; bobber.visible = line.visible = false; $("reel").classList.add("hidden"); hideBiteUi(); if (msg) toast(msg); setHint(idleHint()); }
+const BITE_WINDOW = 1.1; // 입질 후 챔질할 수 있는 시간(초)
+let biteFrozen = false;  // 테스트용: 입질 시간을 멈춤
+/** 입질 효과(화면): 찌 위 "!" 말풍선과 남은 시간 링, 가장자리 번쩍임 */
+function showBiteUi() { $("biteflash").classList.remove("hidden"); $("bite").classList.remove("hidden"); fs.rippleT = 0; placeBite(); }
+function hideBiteUi() { $("biteflash").classList.add("hidden"); $("bite").classList.add("hidden"); bobber.scale.setScalar(1); }
+function placeBite() { // 찌의 화면 위치 위에 말풍선을 두고, 화면 밖이면 가장자리 안쪽으로 붙임
+  const v = bobber.position.clone(); v.y += 0.35; v.project(camera);
+  let x = (v.x + 1) / 2 * innerWidth, y = (1 - v.y) / 2 * innerHeight - 6;
+  if (v.z > 1) { x = innerWidth / 2; y = innerHeight * 0.3; }
+  const el = $("bite"); el.style.left = Math.min(innerWidth - 48, Math.max(48, x)) + "px"; el.style.top = Math.min(innerHeight - 130, Math.max(100, y)) + "px";
+}
 function bite() {
-  fs.st = "bite"; fs.window = 1.1; fs.fish = pickFish(); new Image().src = fs.fish.img; // 결과 카드 그림을 미리 받아 둠
-  sfx.bite(); ripple(bobber.position); toast("입질! 지금 눌러요!", 1100); setHint("지금!");
+  fs.st = "bite"; fs.window = BITE_WINDOW; fs.fish = pickFish(); new Image().src = fs.fish.img; // 결과 카드 그림을 미리 받아 둠
+  sfx.bite(); ripple(bobber.position); setHint("지금!"); showBiteUi(); // 알림 문구 대신 찌 위 "!" 말풍선을 보여줌
 }
 // 낚는 동안에는 어떤 물고기인지 알려 주지 않도록 모든 물고기를 같은 그림자 모양으로 보여줌
 const FISH_SHADOW = "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 48"><path d="M4 24C14 8 36 6 46 18L60 8v32L46 30C36 42 14 40 4 24z" fill="#10204a" fill-opacity=".85"/><circle cx="16" cy="21" r="2.4" fill="#fff"/></svg>');
 /** 낚시 바 미니게임 시작. 규칙(난이도 숫자 포함)은 bar.js에 있습니다. */
 function hook() {
-  const f = fs.fish; fs.st = "reeling"; fs.reelT = 0; fs.tickT = 0;
+  const f = fs.fish; fs.st = "reeling"; fs.reelT = 0; fs.tickT = 0; hideBiteUi();
   fs.bar = newBar(f.str); fs.prog = fs.bar.prog;
   const img = $("ffish"); img.src = FISH_SHADOW; img.alt = "물고기";
   $("fzone").style.width = fs.bar.zw * 100 + "%"; $("reel").classList.remove("hidden");
   setHint(TOUCH ? "화면을 누르면 → 떼면 ←" : "Space(또는 화면 클릭)를 누르면 → 떼면 ←"); toast("걸렸다! 물고기를 따라가요", 1800);
 }
 function finish(ok, reason) {
-  $("reel").classList.add("hidden"); bobber.visible = line.visible = false;
+  $("reel").classList.add("hidden"); bobber.visible = line.visible = false; hideBiteUi();
   const f = fs.fish; fs.st = "result"; fs.resT = 2.2;
   if (ok) {
     const isNew = !bank.dex[f.id];
@@ -301,7 +312,12 @@ function updateFishing(dt, t) {
     fs.biteT -= dt; if (fs.biteT <= 0) bite();
   } else if (fs.st === "bite") {
     bobber.position.y = 0.08 - 0.12 * Math.abs(Math.sin(t * 25));
-    fs.window -= dt; if (fs.window <= 0) { retract(); toast("놓쳤어요..."); sfx.lose(); }
+    bobber.scale.setScalar(1 + 0.3 * Math.abs(Math.sin(t * 18)));                          // 찌가 커졌다 작아짐
+    fs.rippleT = (fs.rippleT || 0) - dt; if (fs.rippleT <= 0) { ripple(bobber.position); fs.rippleT = 0.3; } // 물결이 계속 퍼짐
+    $("biteRing").style.strokeDashoffset = 233 * (1 - Math.max(0, Math.min(1, fs.window / BITE_WINDOW))); // 남은 시간 링
+    placeBite();
+    if (!biteFrozen) fs.window -= dt;
+    if (fs.window <= 0) { retract(); toast("놓쳤어요..."); sfx.lose(); }
   } else if (fs.st === "reeling") {
     const b = fs.bar; fs.reelT += dt;
     const res = stepBar(b, held, dt); fs.prog = b.prog;
@@ -534,4 +550,4 @@ runLobby({
   renderPlayers();
 });
 requestAnimationFrame(frame);
-window.__fish = { remote: id => { const r = remotes.get(id); return r && { b: r.b, bobVisible: r.bob.visible, score: r.score }; }, state: () => ({ started, online: !!net, remotes: remotes.size, name: player.name, id: net && net.id, st: fs.st, held, yaw, facing: player.facing, pts: bank.pts, cnt: bank.cnt, fish: fs.fish && fs.fish.id, prog: fs.prog, bar: fs.bar && { zx: fs.bar.zx, zw: fs.bar.zw, zv: fs.bar.zv, fx: fs.bar.fx, inZone: fs.bar.inZone }, prints: prints.count }), fastBite: () => { if (fs.st === "waiting") fs.biteT = 0.05; }, setFish: id => { const f = FISH.find(x => x.id === id); if (f) { fs.fish = f; new Image().src = f.img; } }, count: FISH.length, setPos: (x, z) => { player.pos.set(x, 0, z); }, setHeld: v => { held = !!v; }, forceNext: id => { forcedFish = FISH.find(x => x.id === id) || null; } };
+window.__fish = { remote: id => { const r = remotes.get(id); return r && { b: r.b, bobVisible: r.bob.visible, score: r.score }; }, state: () => ({ started, online: !!net, remotes: remotes.size, name: player.name, id: net && net.id, st: fs.st, held, yaw, facing: player.facing, pts: bank.pts, cnt: bank.cnt, fish: fs.fish && fs.fish.id, prog: fs.prog, bar: fs.bar && { zx: fs.bar.zx, zw: fs.bar.zw, zv: fs.bar.zv, fx: fs.bar.fx, inZone: fs.bar.inZone }, prints: prints.count }), fastBite: () => { if (fs.st === "waiting") fs.biteT = 0.05; }, setFish: id => { const f = FISH.find(x => x.id === id); if (f) { fs.fish = f; new Image().src = f.img; } }, count: FISH.length, freezeBite: v => { biteFrozen = !!v; }, setPos: (x, z) => { player.pos.set(x, 0, z); }, setHeld: v => { held = !!v; }, forceNext: id => { forcedFish = FISH.find(x => x.id === id) || null; } };
