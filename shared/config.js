@@ -1,6 +1,5 @@
-// 멀티플레이 서버 주소. 배포한 Cloudflare Worker 주소(wss://...)를 PROD_SERVER에 넣으세요.
-// 비워 두면 서버 없이 '혼자 하기'만 가능합니다. 로컬(localhost)에서는 ws://localhost:8787을 씁니다.
-export const PROD_SERVER = "";
+// 멀티플레이 서버 주소(배포한 Cloudflare Worker, wss://...). 비워 두면 서버 없이 '혼자 하기'만 가능합니다. 로컬(localhost)에서는 ws://localhost:8787을 씁니다.
+export const PROD_SERVER = "wss://xmas-penguin-server.penguin-games.workers.dev";
 
 export function serverBase() {
   const h = location.hostname;
