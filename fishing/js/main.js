@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { SKINS, createPenguin, animatePenguin, makeNameLabel, setViewYaw, rodTip as penguinRodTip } from "../../shared/penguin.js";
 import { runLobby } from "../../shared/lobby.js";
 import { FISH, TIERS } from "./fish-data.js";
+import { newBar, stepBar } from "./bar.js";
 
 const $ = id => document.getElementById(id);
 const G = 18, FIELD = 46, SPEED = 6, TOUCH = matchMedia("(pointer: coarse)").matches;
@@ -198,7 +199,7 @@ const LINE_N = 14, linePos = new Float32Array(LINE_N * 3);
 const lineGeo = new THREE.BufferGeometry(); lineGeo.setAttribute("position", new THREE.BufferAttribute(linePos, 3));
 const line = new THREE.Line(lineGeo, new THREE.LineBasicMaterial({ color: 0x1a2340 })); line.frustumCulled = false; line.visible = false; scene.add(line);
 
-const fs = { st: "idle", hold: 0, power: 0, v: new THREE.Vector3(), land: new THREE.Vector3(), biteT: 0, window: 0, fish: null, prog: 0, tens: 0, strug: false, strT: 0, reelT: 0, tickT: 0, resT: 0, bob: 0 };
+const fs = { st: "idle", hold: 0, power: 0, v: new THREE.Vector3(), land: new THREE.Vector3(), biteT: 0, window: 0, fish: null, prog: 0, bar: null, reelT: 0, tickT: 0, resT: 0, bob: 0 };
 const bank = { pts: store.get("xmas-fish-pts", 0), cnt: 0, dex: store.get("xmas-fish-dex", {}) };
 const hudP = $("pts"), hudC = $("cnt");
 hudP.textContent = bank.pts;
@@ -210,7 +211,9 @@ function toast(msg, ms = 1800) {
 }
 function setHint(s) { $("hint").textContent = s; }
 function rodTip(out) { return penguinRodTip(out, player.pos, player.facing); }
+let forcedFish = null; // 테스트용: 다음 입질에 나올 물고기를 지정
 function pickFish() {
+  if (forcedFish) { const f = forcedFish; forcedFish = null; return f; }
   const total = FISH.reduce((s, f) => s + f.w, 0); let r = Math.random() * total;
   for (const f of FISH) { r -= f.w; if (r <= 0) return f; }
   return FISH[0];
@@ -251,11 +254,18 @@ function landed() {
 }
 function retract(msg) { fs.st = "idle"; bobber.visible = line.visible = false; $("reel").classList.add("hidden"); if (msg) toast(msg); setHint(idleHint()); }
 function bite() {
-  fs.st = "bite"; fs.window = 1.1; fs.fish = pickFish(); new Image().src = fs.fish.img; // 결과 카드 그림을 미리 받아 둠 sfx.bite(); ripple(bobber.position); toast("입질! 지금 눌러요!", 1100); setHint("지금!");
+  fs.st = "bite"; fs.window = 1.1; fs.fish = pickFish(); new Image().src = fs.fish.img; // 결과 카드 그림을 미리 받아 둠
+  sfx.bite(); ripple(bobber.position); toast("입질! 지금 눌러요!", 1100); setHint("지금!");
 }
+// 낚는 동안에는 어떤 물고기인지 알려 주지 않도록 모든 물고기를 같은 그림자 모양으로 보여줌
+const FISH_SHADOW = "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 48"><path d="M4 24C14 8 36 6 46 18L60 8v32L46 30C36 42 14 40 4 24z" fill="#10204a" fill-opacity=".85"/><circle cx="16" cy="21" r="2.4" fill="#fff"/></svg>');
+/** 낚시 바 미니게임 시작. 규칙(난이도 숫자 포함)은 bar.js에 있습니다. */
 function hook() {
-  fs.st = "reeling"; fs.prog = 0.18; fs.tens = 0.15; fs.strug = false; fs.strT = 0.8; fs.reelT = 0;
-  $("reel").classList.remove("hidden"); $("reel").classList.remove("struggle"); setHint("누르고 있으면 감겨요"); toast("걸렸다!");
+  const f = fs.fish; fs.st = "reeling"; fs.reelT = 0; fs.tickT = 0;
+  fs.bar = newBar(f.str); fs.prog = fs.bar.prog;
+  const img = $("ffish"); img.src = FISH_SHADOW; img.alt = "물고기";
+  $("fzone").style.width = fs.bar.zw * 100 + "%"; $("reel").classList.remove("hidden");
+  setHint(TOUCH ? "화면을 누르면 → 떼면 ←" : "Space(또는 화면 클릭)를 누르면 → 떼면 ←"); toast("걸렸다! 물고기를 따라가요", 1800);
 }
 function finish(ok, reason) {
   $("reel").classList.add("hidden"); bobber.visible = line.visible = false;
@@ -289,25 +299,18 @@ function updateFishing(dt, t) {
     bobber.position.y = 0.08 - 0.12 * Math.abs(Math.sin(t * 25));
     fs.window -= dt; if (fs.window <= 0) { retract(); toast("놓쳤어요..."); sfx.lose(); }
   } else if (fs.st === "reeling") {
-    const f = fs.fish; fs.reelT += dt; fs.strT -= dt;
-    if (fs.strT <= 0) { fs.strug = Math.random() < 0.5; fs.strT = 0.5 + Math.random() * 0.7; $("reel").classList.toggle("struggle", fs.strug); }
-    if (held) {
-      fs.prog += (fs.strug ? 0.04 : 0.2 / Math.sqrt(f.str)) * dt;
-      fs.tens += (fs.strug ? 0.9 * f.str : 0.15) * dt;
-      fs.tickT -= dt; if (fs.tickT <= 0) { sfx.tick(); fs.tickT = 0.1; }
-    } else { fs.tens -= 0.7 * dt; fs.prog -= 0.05 * dt; }
-    fs.tens = Math.max(0, fs.tens); fs.prog = Math.max(0, fs.prog);
-    $("prog").style.width = Math.min(100, fs.prog * 100) + "%";
-    $("tens").style.width = Math.min(100, fs.tens * 100) + "%"; $("tens").classList.toggle("hot", fs.tens > 0.75);
-    $("reellabel").textContent = fs.strug ? "버텨요! 손을 떼요!" : "천천히 감아요";
-    // 찌를 끌어당김 + 물고기 요동
-    const k = Math.min(1, fs.prog);
-    bobber.position.x = fs.land.x + (player.pos.x - fs.land.x) * k * 0.85 + (fs.strug ? Math.sin(t * 30) * 0.15 : 0);
-    bobber.position.z = fs.land.z + (player.pos.z - fs.land.z) * k * 0.85;
+    const b = fs.bar; fs.reelT += dt;
+    const res = stepBar(b, held, dt); fs.prog = b.prog;
+    if (b.inZone && held) { fs.tickT -= dt; if (fs.tickT <= 0) { sfx.tick(); fs.tickT = 0.14; } }
+    $("fzone").style.left = b.zx * 100 + "%"; $("fzone").classList.toggle("on", b.inZone); $("reel").classList.toggle("held", held);
+    $("ffish").style.left = b.fx * 100 + "%";
+    const pg = $("fprog"); pg.style.width = b.prog * 100 + "%"; pg.style.background = `hsl(${Math.round(b.prog * 120)} 80% 45%)`;
+    // 찌를 끌어당김, 물고기가 칸을 벗어나면 찌가 요동침
+    bobber.position.x = fs.land.x + (player.pos.x - fs.land.x) * b.prog * 0.85 + (b.inZone ? 0 : Math.sin(t * 30) * 0.15);
+    bobber.position.z = fs.land.z + (player.pos.z - fs.land.z) * b.prog * 0.85;
     bobber.position.y = 0.08;
-    if (fs.tens >= 1) finish(false, "줄이 끊어졌어요!");
-    else if (fs.prog >= 1) finish(true);
-    else if (fs.reelT > 22 + f.str * 10) finish(false, "물고기가 도망갔어요"); // 센 물고기일수록 오래 버틸 시간을 줌
+    if (res === "win") finish(true);
+    else if (res === "lose" || fs.reelT > 90) finish(false, "물고기가 도망갔어요");
   } else if (fs.st === "result") {
     fs.resT -= dt; if (fs.resT <= 0) { fs.st = "idle"; $("result").classList.add("hidden"); setHint(idleHint()); }
   }
@@ -398,8 +401,10 @@ function groundAt(cx, cy) {
   const p = new THREE.Vector3(); return ray.ray.intersectPlane(plane, p) ? p : null;
 }
 let drag = null;
+let holdPtr = null; // 입질·낚는 중에 화면을 누르고 있는 손가락
 canvas.addEventListener("pointerdown", e => {
   if (!started) return; initAudio();
+  if (fs.st === "bite" || fs.st === "reeling") { holdPtr = e.pointerId; canvas.setPointerCapture(e.pointerId); actionDown(); return; } // 화면 어디든 누르면 챔질·초록 칸 이동
   drag = { x: e.clientX, y: e.clientY, sx: e.clientX, sy: e.clientY, t: performance.now(), moved: false, id: e.pointerId };
   canvas.setPointerCapture(e.pointerId);
 });
@@ -416,6 +421,9 @@ canvas.addEventListener("pointerup", e => {
   drag = null;
 });
 canvas.addEventListener("pointercancel", () => { drag = null; });
+// 손가락이 화면 밖에서 떼어져도 반드시 풀리도록 창 전체에서 감시
+const releaseHold = e => { if (e.pointerId === holdPtr) { holdPtr = null; actionUp(); } };
+addEventListener("pointerup", releaseHold); addEventListener("pointercancel", releaseHold);
 canvas.addEventListener("wheel", e => { dist = Math.min(24, Math.max(6, dist + Math.sign(e.deltaY) * 1.2)); e.preventDefault(); }, { passive: false });
 canvas.addEventListener("contextmenu", e => e.preventDefault());
 addEventListener("keydown", e => {
@@ -508,7 +516,7 @@ camera.position.set(0, 8, 14);
 setSkin(player.color); // 로비 뒤에서 미리보기
 runLobby({
   root: $("start"), title: "🎣 겨울 호수 낚시", subtitle: "펭귄이 되어 크리스마스 물고기를 잡아요.",
-  howto: TOUCH ? "탭: 이동 · 드래그: 카메라 · 🎣 길게 눌러 던지기 → 입질에 탭 → 누르고 감기" : "클릭/WASD: 이동 · 드래그: 카메라 · Space(길게): 던지기 → 입질에 Space → 누르고 감기",
+  howto: TOUCH ? "탭: 이동 · 드래그: 카메라 · 🎣 길게 눌러 던지기 → 입질에 탭 → 누르고 있으면 초록 칸이 올라가요" : "클릭/WASD: 이동 · 드래그: 카메라 · Space(길게): 던지기 → 입질에 Space → 누르고 있으면 초록 칸이 올라가요",
   onSkin: i => setSkin(i),
 }).then(sess => {
   player.name = sess.name; setSkin(sess.skin);
@@ -525,4 +533,4 @@ runLobby({
   renderPlayers();
 });
 requestAnimationFrame(frame);
-window.__fish = { remote: id => { const r = remotes.get(id); return r && { b: r.b, bobVisible: r.bob.visible, score: r.score }; }, state: () => ({ started, online: !!net, remotes: remotes.size, name: player.name, id: net && net.id, st: fs.st, pts: bank.pts, cnt: bank.cnt, fish: fs.fish && fs.fish.id, prog: fs.prog, tens: fs.tens, prints: prints.count }), fastBite: () => { if (fs.st === "waiting") fs.biteT = 0.05; }, setFish: id => { const f = FISH.find(x => x.id === id); if (f) { fs.fish = f; new Image().src = f.img; } }, count: FISH.length };
+window.__fish = { remote: id => { const r = remotes.get(id); return r && { b: r.b, bobVisible: r.bob.visible, score: r.score }; }, state: () => ({ started, online: !!net, remotes: remotes.size, name: player.name, id: net && net.id, st: fs.st, held, pts: bank.pts, cnt: bank.cnt, fish: fs.fish && fs.fish.id, prog: fs.prog, bar: fs.bar && { zx: fs.bar.zx, zw: fs.bar.zw, zv: fs.bar.zv, fx: fs.bar.fx, inZone: fs.bar.inZone }, prints: prints.count }), fastBite: () => { if (fs.st === "waiting") fs.biteT = 0.05; }, setFish: id => { const f = FISH.find(x => x.id === id); if (f) { fs.fish = f; new Image().src = f.img; } }, count: FISH.length, setHeld: v => { held = !!v; }, forceNext: id => { forcedFish = FISH.find(x => x.id === id) || null; } };

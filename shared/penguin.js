@@ -68,18 +68,22 @@ function createSpritePenguin(color, { rod = false }) {
   const mat = new THREE.MeshBasicMaterial({ alphaTest: 0.35, alphaToCoverage: true, side: THREE.DoubleSide });
   const plane = new THREE.Mesh(planeGeo, mat); plane.rotation.order = "YXZ"; plane.visible = false; body.add(plane);
   if (rod) { // 그림에 없는 낚싯대는 3D 막대로 (끝 위치는 rodTip과 같음)
-    const r = new THREE.Mesh(new THREE.CylinderGeometry(0.025, 0.04, 2.4, 6), new THREE.MeshBasicMaterial({ color: 0x6b3f1e }));
-    r.position.set(ROD_SIDE, 1.18, 0); r.rotation.x = Math.PI / 2 - 0.55; root.add(r);
+    const r = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.04, ROD_LEN, 6), new THREE.MeshBasicMaterial({ color: 0x6b3f1e }));
+    // 손잡이(ROD_HAND)에서 시작해 앞쪽 위(ROD_PITCH)로 뻗는 막대: 중심 = 손 + 길이/2 × 방향
+    r.position.set(ROD_HAND[0], ROD_HAND[1] + (ROD_LEN / 2) * Math.sin(ROD_PITCH), ROD_HAND[2] + (ROD_LEN / 2) * Math.cos(ROD_PITCH));
+    r.rotation.x = Math.PI / 2 - ROD_PITCH; root.add(r);
   }
   const blob = new THREE.Mesh(new THREE.CircleGeometry(0.85, 20).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x5b6f99, transparent: true, opacity: 0.35 }));
   blob.position.y = 0.03; root.add(blob);
   root.userData = { body, plane, set: sprites[SPRITE_COLORS[idx]], feet: [], flippers: [], stride: 0, wobble: 0, sprite: true, tex: null, flip: null };
   return root;
 }
-const ROD_SIDE = 0.55, ROD_FWD = 1.02;
+const ROD_HAND = [0.92, 0.86, 0.14]; // 손(날개 끝) 위치: [왼쪽, 높이, 앞쪽]. 그림 속 날개 끝이 바깥쪽 약 0.9, 높이 약 0.8에 있음
+const ROD_LEN = 1.8, ROD_PITCH = 0.7; // 막대 길이, 앞쪽에서 위로 들어올린 각도(라디안)
+const ROD_SIDE = ROD_HAND[0], ROD_FWD = ROD_HAND[2] + ROD_LEN * Math.cos(ROD_PITCH), ROD_TIP_Y = ROD_HAND[1] + ROD_LEN * Math.sin(ROD_PITCH);
 /** 낚싯대 끝의 월드 좌표 (낚시줄 시작점). 캐릭터의 앞·왼쪽으로 조금 나온 위치 */
 export function rodTip(out, pos, facing) {
-  return out.set(pos.x + Math.sin(facing) * ROD_FWD + Math.cos(facing) * ROD_SIDE, 1.8, pos.z + Math.cos(facing) * ROD_FWD - Math.sin(facing) * ROD_SIDE);
+  return out.set(pos.x + Math.sin(facing) * ROD_FWD + Math.cos(facing) * ROD_SIDE, ROD_TIP_Y, pos.z + Math.cos(facing) * ROD_FWD - Math.sin(facing) * ROD_SIDE);
 }
 
 const hullCache = new Map();
