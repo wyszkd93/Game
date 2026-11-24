@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { SKINS, createPenguin, animatePenguin, hitPenguin, makeNameLabel } from "../../shared/penguin.js";
+import { SKINS, createPenguin, animatePenguin, hitPenguin, makeNameLabel, setViewYaw } from "../../shared/penguin.js";
 import { runLobby } from "../../shared/lobby.js";
 
 const $ = id => document.getElementById(id);
@@ -493,8 +493,9 @@ function updateCamera() {
 let last = performance.now();
 function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000), t = now / 1000; last = now;
+  setViewYaw(yaw); // 보는 각도에 맞는 펭귄 그림을 고르기 위해 카메라 방향을 알려 줌
   if (started) { updatePlayer(dt, t); updateNpcs(dt, t); updateBalls(dt); updateRemotes(dt); netTick(dt); }
-  else { yaw += dt * 0.15; player.obj.rotation.y = t; }
+  else { yaw += dt * 0.15; animatePenguin(player.obj, { moving: false, dt, facing: t }); }
   updateSnow(dt);
   treeLights.forEach((m, i) => m.scale.setScalar(0.8 + 0.4 * (0.5 + 0.5 * Math.sin(t * 3 + i))));
   treeLights.star.rotation.y = t;

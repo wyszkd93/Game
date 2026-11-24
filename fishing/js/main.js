@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { SKINS, createPenguin, animatePenguin, makeNameLabel } from "../../shared/penguin.js";
+import { SKINS, createPenguin, animatePenguin, makeNameLabel, setViewYaw, rodTip as penguinRodTip } from "../../shared/penguin.js";
 import { runLobby } from "../../shared/lobby.js";
 
 const $ = id => document.getElementById(id);
@@ -217,7 +217,7 @@ function toast(msg, ms = 1800) {
   clearTimeout(toast.h); toast.h = setTimeout(() => t.classList.remove("on"), ms);
 }
 function setHint(s) { $("hint").textContent = s; }
-function rodTip(out) { return out.set(player.pos.x + Math.sin(player.facing) * 1.0, 1.8, player.pos.z + Math.cos(player.facing) * 1.0); }
+function rodTip(out) { return penguinRodTip(out, player.pos, player.facing); }
 function pickFish() {
   const total = FISH.reduce((s, f) => s + f.w, 0); let r = Math.random() * total;
   for (const f of FISH) { r -= f.w; if (r <= 0) return f; }
@@ -354,7 +354,7 @@ function addRemote(p) {
 }
 function removeRemote(id) { const r = remotes.get(id); if (r) { scene.remove(r.obj, r.bob, r.ln); remotes.delete(id); renderPlayers(); } }
 function clearRemotes() { [...remotes.keys()].forEach(removeRemote); }
-const angDiff = (a, b) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
+const tipV = new THREE.Vector3(), angDiff = (a, b) => Math.atan2(Math.sin(a - b), Math.cos(a - b));
 function updateRemotes(dt) {
   for (const r of remotes.values()) {
     const k = Math.min(1, dt * 12);
@@ -366,7 +366,7 @@ function updateRemotes(dt) {
       r.bob.position.x += (r.b[0] - r.bob.position.x) * k; r.bob.position.z += (r.b[1] - r.bob.position.z) * k;
       r.bob.position.y = 0.08 + Math.sin(performance.now() / 330 + r.id) * 0.03;
       const a = r.ln.geometry.attributes.position.array;
-      a[0] = r.pos.x + Math.sin(r.facing); a[1] = 1.8; a[2] = r.pos.z + Math.cos(r.facing);
+      penguinRodTip(tipV, r.pos, r.facing); a[0] = tipV.x; a[1] = tipV.y; a[2] = tipV.z;
       a[3] = r.bob.position.x; a[4] = r.bob.position.y; a[5] = r.bob.position.z;
       r.ln.geometry.attributes.position.needsUpdate = true;
     } else { r.bob.visible = r.ln.visible = false; }
@@ -475,7 +475,8 @@ function updateCamera(dt) {
 let last = performance.now();
 function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000), t = now / 1000; last = now;
-  if (started) { updatePlayer(dt); updateFishing(dt, t); updateRemotes(dt); netTick(dt); } else { yaw += dt * 0.15; player.obj.rotation.y = t; }
+  setViewYaw(yaw); // 보는 각도에 맞는 펭귄 그림을 고르기 위해 카메라 방향을 알려 줌
+  if (started) { updatePlayer(dt); updateFishing(dt, t); updateRemotes(dt); netTick(dt); } else { yaw += dt * 0.15; animatePenguin(player.obj, { moving: false, dt, facing: t }); }
   for (const s of shadows) { s.a += s.v * dt; s.m.position.x = POND.x + Math.cos(s.a) * s.r; s.m.position.z = POND.z + Math.sin(s.a) * s.r; s.m.rotation.y = -s.a + (s.v > 0 ? -Math.PI / 2 : Math.PI / 2); }
   for (let i = puffs.length - 1; i >= 0; i--) { const q = puffs[i]; q.life -= dt; q.v.y -= 10 * dt; q.m.position.addScaledVector(q.v, dt); q.m.scale.setScalar(Math.max(0.01, q.life * 1.8)); if (q.life <= 0) { scene.remove(q.m); puffs.splice(i, 1); } }
   for (let i = ripples.length - 1; i >= 0; i--) { const r = ripples[i]; r.life -= dt * 1.2; const s = 0.3 + (1 - r.life) * 2.2; r.m.scale.set(s, 1, s); r.m.material.opacity = Math.max(0, r.life) * 0.8; if (r.life <= 0) { scene.remove(r.m); ripples.splice(i, 1); } }
