@@ -1,17 +1,9 @@
 import * as THREE from "three";
 import { SKINS, createPenguin, animatePenguin, makeNameLabel, setViewYaw, rodTip as penguinRodTip } from "../../shared/penguin.js";
 import { runLobby } from "../../shared/lobby.js";
+import { FISH, TIERS } from "./fish-data.js";
 
 const $ = id => document.getElementById(id);
-const FISH = [
-  { id: "smelt", name: "눈꽃 빙어", e: "🐟", pts: 5, w: 38, str: 0.6, col: 0xbfe3ff },
-  { id: "carp", name: "얼음 잉어", e: "🐠", pts: 15, w: 24, str: 1.0, col: 0x7fb8ff },
-  { id: "trout", name: "루돌프 송어", e: "🦌", pts: 25, w: 14, str: 1.2, col: 0xc98f5a },
-  { id: "salmon", name: "산타 연어", e: "🎅", pts: 40, w: 8, str: 1.5, col: 0xe8454b },
-  { id: "star", name: "황금 별고기", e: "⭐", pts: 120, w: 2, str: 1.9, col: 0xffd35a },
-  { id: "sock", name: "크리스마스 양말", e: "🧦", pts: 1, w: 9, str: 0.4, col: 0xe8454b },
-  { id: "boot", name: "낡은 장화", e: "🥾", pts: 0, w: 5, str: 0.4, col: 0x7a4b25 },
-];
 const G = 18, FIELD = 46, SPEED = 6, TOUCH = matchMedia("(pointer: coarse)").matches;
 const POND = { x: 0, z: -17, r: 12 };
 const store = {
@@ -259,7 +251,7 @@ function landed() {
 }
 function retract(msg) { fs.st = "idle"; bobber.visible = line.visible = false; $("reel").classList.add("hidden"); if (msg) toast(msg); setHint(idleHint()); }
 function bite() {
-  fs.st = "bite"; fs.window = 1.1; fs.fish = pickFish(); sfx.bite(); ripple(bobber.position); toast("입질! 지금 눌러요!", 1100); setHint("지금!");
+  fs.st = "bite"; fs.window = 1.1; fs.fish = pickFish(); new Image().src = fs.fish.img; // 결과 카드 그림을 미리 받아 둠 sfx.bite(); ripple(bobber.position); toast("입질! 지금 눌러요!", 1100); setHint("지금!");
 }
 function hook() {
   fs.st = "reeling"; fs.prog = 0.18; fs.tens = 0.15; fs.strug = false; fs.strT = 0.8; fs.reelT = 0;
@@ -269,11 +261,13 @@ function finish(ok, reason) {
   $("reel").classList.add("hidden"); bobber.visible = line.visible = false;
   const f = fs.fish; fs.st = "result"; fs.resT = 2.2;
   if (ok) {
+    const isNew = !bank.dex[f.id];
     bank.pts += f.pts; bank.cnt++; bank.dex[f.id] = (bank.dex[f.id] || 0) + 1;
     store.set("xmas-fish-pts", bank.pts); store.set("xmas-fish-dex", bank.dex);
     hudP.textContent = bank.pts; hudC.textContent = bank.cnt;
     sessionPts += f.pts; if (net) { net.send({ t: "score", v: sessionPts }); net.send({ t: "ev", k: "catch", v: f.id }); renderPlayers(); }
-    $("rem").textContent = f.e; $("rname").textContent = f.name; $("rpts").textContent = f.pts ? "+" + f.pts + "점" : "쓸모는 없어요...";
+    const img = $("rimg"); img.src = f.img; img.alt = f.name; $("rname").textContent = f.name; $("rpts").textContent = f.pts ? "+" + f.pts + "점" : "쓸모는 없어요...";
+    const tier = $("rtier"); tier.textContent = f.tierLabel; tier.style.background = f.tierCss; $("rnew").classList.toggle("hidden", !isNew); $("result").style.borderColor = f.tierCss;
     $("result").classList.remove("hidden"); sfx.win(); splash(new THREE.Vector3(player.pos.x, 1, player.pos.z).addScaledVector(new THREE.Vector3(Math.sin(player.facing), 0, Math.cos(player.facing)), 1.5), 14, f.col);
   } else { toast(reason); sfx.lose(); fs.resT = 0.8; }
   setHint("");
@@ -313,7 +307,7 @@ function updateFishing(dt, t) {
     bobber.position.y = 0.08;
     if (fs.tens >= 1) finish(false, "줄이 끊어졌어요!");
     else if (fs.prog >= 1) finish(true);
-    else if (fs.reelT > 25) finish(false, "물고기가 도망갔어요");
+    else if (fs.reelT > 22 + f.str * 10) finish(false, "물고기가 도망갔어요"); // 센 물고기일수록 오래 버틸 시간을 줌
   } else if (fs.st === "result") {
     fs.resT -= dt; if (fs.resT <= 0) { fs.st = "idle"; $("result").classList.add("hidden"); setHint(idleHint()); }
   }
@@ -383,7 +377,7 @@ function onNet(m) {
     case "score": { const r = remotes.get(m.id); if (r) { r.score = m.v; renderPlayers(); } break; }
     case "ev": {
       const r = remotes.get(m.id), f = FISH.find(x => x.id === m.v);
-      if (r && m.k === "catch" && f) { toast(`${r.name} 님이 ${f.e} ${f.name}을(를) 낚았어요!`, 2200); splash(r.bob.position, 8); }
+      if (r && m.k === "catch" && f) { toast(`${r.name} 님이 [${f.tierLabel}] ${f.name}을(를) 낚았어요!`, 2200); splash(r.bob.position, 8); }
       break;
     }
   }
@@ -495,12 +489,16 @@ function frame(now) {
 /* ---------- 도감 UI ---------- */
 function renderDex() {
   const ul = $("dexlist"); ul.textContent = "";
+  let got = 0;
   for (const f of FISH) {
-    const n = bank.dex[f.id] || 0, li = document.createElement("li"); if (!n) li.className = "unk";
-    const a = document.createElement("span"), b = document.createElement("span"), c = document.createElement("b");
-    a.textContent = n ? f.e : "❔"; b.textContent = n ? f.name + " (" + f.pts + "점)" : "???"; c.textContent = n ? "×" + n : "";
-    li.append(a, b, c); ul.appendChild(li);
+    const n = bank.dex[f.id] || 0; if (n) got++;
+    const li = document.createElement("li"); li.className = n ? "got" : "unk"; li.style.setProperty("--tier", f.tierCss);
+    const im = document.createElement("img"); im.src = f.img; im.alt = n ? f.name : "미발견"; im.loading = "lazy"; im.width = 80; im.height = 64;
+    const nm = document.createElement("span"); nm.className = "nm"; nm.textContent = n ? f.name : "???";
+    const meta = document.createElement("span"); meta.className = "meta"; meta.textContent = n ? `${f.tierLabel} · ${f.pts}점 · ×${n}` : f.tierLabel;
+    li.append(im, nm, meta); ul.appendChild(li);
   }
+  $("dextitle").textContent = `📖 물고기 도감 ${got}/${FISH.length}`;
 }
 $("dexbtn").addEventListener("click", () => { renderDex(); $("dex").classList.remove("hidden"); });
 $("dexclose").addEventListener("click", () => $("dex").classList.add("hidden"));
@@ -527,4 +525,4 @@ runLobby({
   renderPlayers();
 });
 requestAnimationFrame(frame);
-window.__fish = { remote: id => { const r = remotes.get(id); return r && { b: r.b, bobVisible: r.bob.visible, score: r.score }; }, state: () => ({ started, online: !!net, remotes: remotes.size, name: player.name, id: net && net.id, st: fs.st, pts: bank.pts, cnt: bank.cnt, fish: fs.fish && fs.fish.id, prog: fs.prog, tens: fs.tens, prints: prints.count }), fastBite: () => { if (fs.st === "waiting") fs.biteT = 0.05; } };
+window.__fish = { remote: id => { const r = remotes.get(id); return r && { b: r.b, bobVisible: r.bob.visible, score: r.score }; }, state: () => ({ started, online: !!net, remotes: remotes.size, name: player.name, id: net && net.id, st: fs.st, pts: bank.pts, cnt: bank.cnt, fish: fs.fish && fs.fish.id, prog: fs.prog, tens: fs.tens, prints: prints.count }), fastBite: () => { if (fs.st === "waiting") fs.biteT = 0.05; }, setFish: id => { const f = FISH.find(x => x.id === id); if (f) { fs.fish = f; new Image().src = f.img; } }, count: FISH.length };
