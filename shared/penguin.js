@@ -4,11 +4,11 @@ import { GLTFLoader } from "three/addons/loaders/GLTFLoader.js";
 import * as SkeletonUtils from "three/addons/utils/SkeletonUtils.js";
 
 export const SKINS = [
-  { name: "빨강", color: 0xe8454b }, { name: "초록", color: 0x3fbf7f },
-  { name: "파랑", color: 0x4aa3ff }, { name: "분홍", color: 0xff8fc2 },
+  { name: "빨강", color: 0xd0303e }, { name: "초록", color: 0x3e9a4a },
+  { name: "파랑", color: 0x4a93d8 }, { name: "분홍", color: 0xf07fa8 },
 ];
 
-const outlineMat = new THREE.MeshBasicMaterial({ color: 0x1a2340, side: THREE.BackSide });
+const outlineMat = new THREE.MeshBasicMaterial({ color: 0x191c44, side: THREE.BackSide });
 const lambert = c => new THREE.MeshLambertMaterial({ color: c });
 function part(geo, color, x = 0, y = 0, z = 0, outline = 1.06) {
   const m = new THREE.Mesh(geo, lambert(color));
@@ -85,32 +85,44 @@ export function createPenguin(color, opts = {}) {
 }
 
 function createProceduralPenguin(color, { rod = false } = {}) {
+  // 시안(둥근 2등신 아기 펭귄): 큰 머리, 하트형 흰 얼굴, 큰 흰 배, 한쪽으로 처진 산타 모자, 꼬리 달린 목도리
   const g = new THREE.Group(), body = new THREE.Group();
-  const navy = 0x26325a, orange = 0xffa733;
+  const navy = 0x3c4469, orange = 0xff9f43, S = (m, x, y, z) => { m.scale.set(x, y, z); return m; };
+  const basic = c => new THREE.MeshBasicMaterial({ color: c });
+  const flat = (geo, c, x, y, z) => { const m = new THREE.Mesh(geo, lambert(c)); m.position.set(x, y, z); return m; }; // 외곽선 없는 부품
 
-  const torso = part(new THREE.SphereGeometry(0.62, 20, 16), navy, 0, 0.88, 0, 1.06);
-  torso.scale.set(1, 1.15, 0.95); body.add(torso);
-  const belly = part(new THREE.SphereGeometry(0.5, 16, 12), 0xffffff, 0, 0.8, 0.3, 0);
-  belly.scale.set(0.85, 1, 0.5); body.add(belly);
-  body.add(part(new THREE.SphereGeometry(0.46, 20, 16), navy, 0, 1.62, 0, 1.06));
-  const face = part(new THREE.SphereGeometry(0.34, 14, 10), 0xffffff, 0, 1.58, 0.2, 0);
-  face.scale.set(1, 0.8, 0.55); body.add(face);
-
-  const eyeW = new THREE.MeshBasicMaterial({ color: 0xffffff }), eyeB = new THREE.MeshBasicMaterial({ color: 0x14182b });
+  // 몸통 + 머리 (머리가 몸보다 살짝 넓음)
+  body.add(S(part(new THREE.SphereGeometry(0.72, 24, 18), navy, 0, 0.78, 0, 1.05), 1.0, 1.0, 0.95));
+  body.add(S(part(new THREE.SphereGeometry(0.72, 24, 18), navy, 0, 1.62, 0, 1.05), 1.12, 0.98, 1.0));
+  // 배
+  body.add(S(flat(new THREE.SphereGeometry(0.5, 20, 16), 0xffffff, 0, 0.7, 0.36), 1.0, 1.1, 0.8));
+  body.add(S(flat(new THREE.SphereGeometry(0.46, 20, 12), 0xdbe6f5, 0, 0.3, 0.24), 1.0, 0.45, 0.8)); // 배 아래 연한 그늘
+  // 하트형 흰 얼굴 (왼쪽·오른쪽 두 덩어리)
+  for (const sx of [-1, 1]) body.add(S(flat(new THREE.SphereGeometry(0.4, 22, 16), 0xffffff, sx * 0.29, 1.52, 0.5), 1.0, 1.05, 0.55));
+  body.add(S(flat(new THREE.SphereGeometry(0.3, 18, 12), 0xffffff, 0, 1.36, 0.56), 1.25, 0.75, 0.5)); // 두 덩어리 아래를 이어 하트 모양으로
+  // 눈(점 + 하이라이트), 부리, 볼터치
+  const eyeB = basic(0x10132e), hi = basic(0xffffff);
   for (const sx of [-1, 1]) {
-    const w = new THREE.Mesh(new THREE.SphereGeometry(0.1, 10, 8), eyeW); w.position.set(sx * 0.17, 1.7, 0.36); body.add(w);
-    const p = new THREE.Mesh(new THREE.SphereGeometry(0.05, 8, 6), eyeB); p.position.set(sx * 0.17, 1.7, 0.45); body.add(p);
+    const e = new THREE.Mesh(new THREE.SphereGeometry(0.085, 12, 10), eyeB); e.position.set(sx * 0.3, 1.58, 0.7); e.scale.set(1, 1.1, 0.6); body.add(e);
+    const h = new THREE.Mesh(new THREE.SphereGeometry(0.026, 8, 6), hi); h.position.set(sx * 0.3 + 0.025, 1.62, 0.735); body.add(h);
+    const b = new THREE.Mesh(new THREE.SphereGeometry(0.13, 12, 10), basic(0xffb6b6)); b.position.set(sx * 0.52, 1.38, 0.62); b.scale.set(1.2, 0.75, 0.3); b.rotation.y = sx * 0.55; body.add(b);
   }
-  const beak = part(new THREE.ConeGeometry(0.1, 0.3, 10), orange, 0, 1.56, 0.52, 1.08); beak.rotation.x = Math.PI / 2; body.add(beak);
+  const beak = part(new THREE.SphereGeometry(0.15, 14, 10), orange, 0, 1.47, 0.71, 1.12); beak.scale.set(1.2, 0.62, 0.75); body.add(beak);
 
-  const scarf = part(new THREE.TorusGeometry(0.43, 0.1, 8, 20), color, 0, 1.26, 0, 1.06); scarf.rotation.x = Math.PI / 2; body.add(scarf);
-  const hat = part(new THREE.ConeGeometry(0.4, 0.75, 14), color, 0, 2.2, 0, 1.06); hat.rotation.z = 0.12; body.add(hat);
-  body.add(part(new THREE.TorusGeometry(0.4, 0.09, 8, 18), 0xffffff, 0, 1.92, 0, 0)).children.at(-1).rotation.x = Math.PI / 2;
-  body.add(part(new THREE.SphereGeometry(0.12, 10, 8), 0xffffff, 0.1, 2.6, 0, 0));
+  // 목도리 (두툼한 띠 + 앞쪽으로 늘어진 꼬리)
+  const scarf = S(part(new THREE.TorusGeometry(0.67, 0.17, 12, 28), color, 0, 1.05, 0.02, 1.07), 1.08, 0.95, 1); scarf.rotation.x = Math.PI / 2; body.add(scarf);
+  const tail = part(new THREE.BoxGeometry(0.26, 0.58, 0.14), color, 0.3, 0.74, 0.74, 1.12); tail.rotation.z = 0.1; body.add(tail);
 
-  const flippers = [-1, 1].map(sx => { // 어깨 위치를 축으로 회전
-    const pivot = new THREE.Group(); pivot.position.set(sx * 0.6, 1.2, 0);
-    const f = part(new THREE.SphereGeometry(0.2, 10, 8), navy, 0, -0.32, 0, 1.08); f.scale.set(0.4, 1.5, 0.8); pivot.add(f);
+  // 산타 모자: 흰 챙 + 둥근 모자 + 옆으로 처진 끝 + 폼폼
+  const brim = S(part(new THREE.TorusGeometry(0.68, 0.16, 12, 28), 0xffffff, 0, 2.13, 0, 1.07), 1.08, 1, 0.98); brim.rotation.x = Math.PI / 2 - 0.12; body.add(brim);
+  const dome = S(part(new THREE.SphereGeometry(0.66, 22, 14, 0, Math.PI * 2, 0, Math.PI / 2), color, 0, 2.16, 0, 1.06), 1.05, 0.98, 1.0); body.add(dome);
+  [[0.2, 2.62, 0.42], [0.44, 2.6, 0.35], [0.65, 2.52, 0.28], [0.83, 2.42, 0.22]].forEach(([x, y, r]) => body.add(part(new THREE.SphereGeometry(r, 16, 12), color, x, y, 0, 1.08))); // 옆으로 처지는 모자 끝
+  body.add(part(new THREE.SphereGeometry(0.2, 14, 12), 0xffffff, 0.98, 2.34, 0, 1.12));
+
+  // 날개(어깨 축으로 회전) · 발
+  const flippers = [-1, 1].map(sx => {
+    const pivot = new THREE.Group(); pivot.position.set(sx * 0.78, 1.1, 0);
+    pivot.add(S(part(new THREE.SphereGeometry(0.22, 12, 10), navy, 0, -0.34, 0, 1.1), 0.5, 1.7, 0.9));
     pivot.userData.sx = sx; body.add(pivot); return pivot;
   });
   if (rod) {
@@ -118,10 +130,10 @@ function createProceduralPenguin(color, { rod = false } = {}) {
     r.position.set(0.1, -0.55, 0.9); r.rotation.x = Math.PI / 2 - 0.55; flippers[1].add(r);
   }
   g.add(body);
-  const feet = [-1, 1].map(sx => { const f = part(new THREE.SphereGeometry(0.2, 10, 8), orange, sx * 0.25, 0.08, 0.22, 1.1); f.scale.set(1, 0.4, 1.4); g.add(f); return f; });
-  const blob = new THREE.Mesh(new THREE.CircleGeometry(0.75, 16).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x5b6f99, transparent: true, opacity: 0.35 }));
+  const feet = [-1, 1].map(sx => { const f = S(part(new THREE.SphereGeometry(0.2, 12, 10), orange, sx * 0.32, 0.08, 0.28, 1.12), 1.1, 0.42, 1.5); g.add(f); return f; });
+  const blob = new THREE.Mesh(new THREE.CircleGeometry(0.85, 20).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x5b6f99, transparent: true, opacity: 0.35 }));
   blob.position.y = 0.03; g.add(blob);
-  g.userData = { body, feet, flippers, stride: 0, wobble: 0 };
+  g.userData = { body, feet, flippers, stride: 0, wobble: 0, footZ: 0.28, flipBase: 0.8 };
   return g;
 }
 
@@ -142,10 +154,10 @@ export function animatePenguin(g, { moving, dt, facing }) {
   u.body.position.y = moving && proc ? Math.abs(s) * 0.07 : 0;
   u.body.rotation.z = (moving && proc ? s * 0.13 : 0) + hit;
   if (u.feet.length) { // 모델에는 발/날개 부품이 따로 없을 수 있음
-    u.feet[0].position.z = 0.22 + (moving ? s * 0.16 : 0);
-    u.feet[1].position.z = 0.22 - (moving ? s * 0.16 : 0);
+    u.feet[0].position.z = u.footZ + (moving ? s * 0.16 : 0);
+    u.feet[1].position.z = u.footZ - (moving ? s * 0.16 : 0);
   }
-  u.flippers.forEach(p => { p.rotation.z = -p.userData.sx * (0.25 + (moving ? 0.3 * s : 0)); });
+  u.flippers.forEach(p => { p.rotation.z = -p.userData.sx * (u.flipBase + (moving ? 0.3 * s : 0)); });
   if (facing !== undefined) g.rotation.y = facing;
 }
 export function hitPenguin(g) { g.userData.wobble = 0.5; }
@@ -160,6 +172,6 @@ export function makeNameLabel(text, { me = false } = {}) {
   x.fillStyle = "#fff"; x.fillText(text, 128, 33, 232);
   const tex = new THREE.CanvasTexture(c); tex.colorSpace = THREE.SRGBColorSpace;
   const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, depthTest: false, transparent: true }));
-  s.scale.set(2.4, 0.6, 1); s.position.y = 3.2; s.renderOrder = 10;
+  s.scale.set(2.4, 0.6, 1); s.position.y = 3.45; s.renderOrder = 10;
   return s;
 }
