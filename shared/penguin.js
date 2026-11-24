@@ -37,18 +37,26 @@ export const usingModel = !!template;
 
 /* ---------- 시안 그림(스프라이트) 펭귄 ---------- */
 const SPRITE_DIR = new URL("./assets/penguin/", import.meta.url).href;
+const ROD_SPRITE_DIR = new URL("./assets/penguin-rod/", import.meta.url).href; // 낚싯대를 든 그림 (낚시 게임에서만 사용)
 const SPRITE_COLORS = ["red", "green", "blue", "pink"], SPRITE_VIEWS = ["front", "tq", "side", "back"];
 const SPRITE_H = 2.9; // 게임 안에서의 키
-let sprites = null; // sprites[색][방향] = 텍스처
+const PX = SPRITE_H / 400; // 그림 1픽셀의 게임 안 길이 (모든 그림은 몸 높이가 400px이 되게 맞춰져 있음)
+async function loadSprites(dir) {
+  const loader = new THREE.TextureLoader(), jobs = [];
+  for (const c of SPRITE_COLORS) for (const v of SPRITE_VIEWS) jobs.push(loader.loadAsync(`${dir}${c}-${v}.webp`).then(t => { t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return [c, v, t]; }));
+  const set = {};
+  for (const [c, v, t] of await Promise.all(jobs)) (set[c] ||= {})[v] = t;
+  return set;
+}
+let sprites = null;    // sprites[색][방향] = 텍스처
+let rodSprites = null; // 낚싯대를 든 그림. 없으면 낚싯대 없는 그림을 씀
 if (!MODE_3D) {
-  try {
-    const loader = new THREE.TextureLoader(), jobs = [];
-    for (const c of SPRITE_COLORS) for (const v of SPRITE_VIEWS) jobs.push(loader.loadAsync(`${SPRITE_DIR}${c}-${v}.webp`).then(t => { t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 8; return [c, v, t]; }));
-    sprites = {};
-    for (const [c, v, t] of await Promise.all(jobs)) (sprites[c] ||= {})[v] = t;
-  } catch (e) { sprites = null; console.info("펭귄 그림을 읽지 못해 도형 펭귄을 사용합니다", e && e.message); }
+  try { sprites = await loadSprites(SPRITE_DIR); } catch (e) { sprites = null; console.info("펭귄 그림을 읽지 못해 도형 펭귄을 사용합니다", e && e.message); }
+  if (sprites) { try { rodSprites = await loadSprites(ROD_SPRITE_DIR); } catch (e) { rodSprites = null; console.info("낚싯대 든 펭귄 그림을 읽지 못해 기본 그림을 사용합니다", e && e.message); } }
 }
 export const usingSprites = !!sprites;
+/** 낚싯대를 든 그림에서 낚싯대 끝(낚시줄이 나가는 곳): [x, y, 그림 폭, 그림 높이] (px, 왼쪽 위 기준). 그림을 바꾸면 이 값도 다시 재야 합니다. */
+const ROD_TIPS = { front: [365, 58, 385, 401], tq: [351, 52, 370, 401], side: [147, 65, 264, 401], back: [337, 37, 345, 400] };
 let viewYaw = 0, viewPitch = 0;
 const MAX_TILT = 0.95; // 그림판을 뒤로 기울이는 최대 각도(라디안, 약 54°). 더 기울이면 누워 보임
 /** 카메라가 캐릭터를 바라보는 방향(각도). 게임이 매 프레임 알려 주면 보는 각도에 맞는 그림이 골라집니다. */
@@ -56,35 +64,34 @@ export function setViewYaw(y, pitch = 0) { viewYaw = y; viewPitch = pitch; }
 const planeGeo = new THREE.PlaneGeometry(1, 1).translate(0, 0.5, 0); // 발끝이 기준점
 const wrapAngle = a => Math.atan2(Math.sin(a), Math.cos(a));
 /** rel = 캐릭터가 바라보는 방향 − 카메라 방향. 0이면 정면, 양수면 화면 오른쪽을 향함. 그림은 3/4=오른쪽, 옆=왼쪽을 향하게 그려져 있음 */
-function pickSprite(set, rel) {
+function pickKey(rel) {
   const a = Math.abs(rel), right = rel > 0;
-  if (a < 0.44) return [set.front, false];
-  if (a < 1.13) return [set.tq, !right];
-  if (a < 2.0) return [set.side, right];
-  return [set.back, false];
+  if (a < 0.44) return ["front", false];
+  if (a < 1.13) return ["tq", !right];
+  if (a < 2.0) return ["side", right];
+  return ["back", false];
 }
+function pickSprite(set, rel) { const [k, flip] = pickKey(rel); return [set[k], flip]; }
 function createSpritePenguin(color, { rod = false }) {
   let idx = SKINS.findIndex(s => s.color === color); if (idx < 0) idx = Math.abs(color) % 4; // NPC 등 다른 색은 변형을 돌려 씀
   const root = new THREE.Group(), body = new THREE.Group(); root.add(body);
   const mat = new THREE.MeshBasicMaterial({ alphaTest: 0.35, alphaToCoverage: true, side: THREE.DoubleSide });
   const plane = new THREE.Mesh(planeGeo, mat); plane.rotation.order = "YXZ"; plane.visible = false; body.add(plane);
-  if (rod) { // 그림에 없는 낚싯대는 3D 막대로 (끝 위치는 rodTip과 같음)
-    const r = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.04, ROD_LEN, 6), new THREE.MeshBasicMaterial({ color: 0x6b3f1e }));
-    // 손잡이(ROD_HAND)에서 시작해 앞쪽 위(ROD_PITCH)로 뻗는 막대: 중심 = 손 + 길이/2 × 방향
-    r.position.set(ROD_HAND[0], ROD_HAND[1] + (ROD_LEN / 2) * Math.sin(ROD_PITCH), ROD_HAND[2] + (ROD_LEN / 2) * Math.cos(ROD_PITCH));
-    r.rotation.x = Math.PI / 2 - ROD_PITCH; root.add(r);
-  }
   const blob = new THREE.Mesh(new THREE.CircleGeometry(0.85, 20).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x5b6f99, transparent: true, opacity: 0.35 }));
   blob.position.y = 0.03; root.add(blob);
-  root.userData = { body, plane, set: sprites[SPRITE_COLORS[idx]], feet: [], flippers: [], stride: 0, wobble: 0, sprite: true, tex: null, flip: null };
+  const set = (rod && rodSprites ? rodSprites : sprites)[SPRITE_COLORS[idx]]; // 낚싯대를 쓰는 펭귄은 낚싯대를 든 그림
+  root.userData = { body, plane, set, feet: [], flippers: [], stride: 0, wobble: 0, sprite: true, tex: null, flip: null };
   return root;
 }
-const ROD_HAND = [0.92, 0.86, 0.14]; // 손(날개 끝) 위치: [왼쪽, 높이, 앞쪽]. 그림 속 날개 끝이 바깥쪽 약 0.9, 높이 약 0.8에 있음
-const ROD_LEN = 1.8, ROD_PITCH = 0.7; // 막대 길이, 앞쪽에서 위로 들어올린 각도(라디안)
-const ROD_SIDE = ROD_HAND[0], ROD_FWD = ROD_HAND[2] + ROD_LEN * Math.cos(ROD_PITCH), ROD_TIP_Y = ROD_HAND[1] + ROD_LEN * Math.sin(ROD_PITCH);
-/** 낚싯대 끝의 월드 좌표 (낚시줄 시작점). 캐릭터의 앞·왼쪽으로 조금 나온 위치 */
+/** 낚싯대 끝의 월드 좌표 (낚시줄 시작점). 보이는 그림 속 낚싯대 끝 위치를 환산 (그림판이 뒤로 기운 만큼 높이는 줄고 카메라 반대쪽으로 밀림) */
 export function rodTip(out, pos, facing) {
-  return out.set(pos.x + Math.sin(facing) * ROD_FWD + Math.cos(facing) * ROD_SIDE, ROD_TIP_Y, pos.z + Math.cos(facing) * ROD_FWD - Math.sin(facing) * ROD_SIDE);
+  if (!rodSprites) { // 낚싯대 든 그림이 없거나 도형 펭귄(대체 모드): 캐릭터의 앞·왼쪽
+    return out.set(pos.x + Math.sin(facing) * 1.6 + Math.cos(facing) * 0.92, 2.0, pos.z + Math.cos(facing) * 1.6 - Math.sin(facing) * 0.92);
+  }
+  const [key, flip] = pickKey(wrapAngle(facing - viewYaw)), [tx, ty, w, h] = ROD_TIPS[key];
+  const X = (flip ? -1 : 1) * (tx - w / 2) * PX, Y = (h - ty) * PX, tilt = Math.min(viewPitch, MAX_TILT), back = Y * Math.sin(tilt);
+  const rx = Math.cos(viewYaw), rz = -Math.sin(viewYaw); // 화면 오른쪽 방향(xz)
+  return out.set(pos.x + rx * X - Math.sin(viewYaw) * back, Y * Math.cos(tilt), pos.z + rz * X - Math.cos(viewYaw) * back);
 }
 
 const hullCache = new Map();
@@ -264,8 +271,8 @@ export function animatePenguin(g, { moving, dt, facing }) {
     const [tex, flip] = pickSprite(u.set, wrapAngle(f - viewYaw));
     if (tex.image) {
       if (u.tex !== tex || u.flip !== flip) { // 그림이나 좌우가 바뀔 때만 크기를 다시 계산
-        const w = (tex.image.width / tex.image.height) * SPRITE_H;
-        u.plane.scale.set(flip ? -w : w, SPRITE_H, 1); u.plane.material.map = tex; u.plane.material.needsUpdate = true; u.tex = tex; u.flip = flip; u.plane.visible = true;
+        const w = tex.image.width * PX, h = tex.image.height * PX; // 그림마다 크기가 달라도(낚싯대 때문에 넓어짐) 몸 크기는 같게
+        u.plane.scale.set(flip ? -w : w, h, 1); u.plane.material.map = tex; u.plane.material.needsUpdate = true; u.tex = tex; u.flip = flip; u.plane.visible = true;
       }
     }
     u.plane.rotation.y = viewYaw - f;                                 // 월드 기준으로는 항상 카메라를 향함
