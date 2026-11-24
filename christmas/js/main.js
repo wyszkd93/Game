@@ -440,28 +440,29 @@ function updateNpcs(dt, t) {
 const hudHits = $("hits"), hudGot = $("got");
 function updateBalls(dt) {
   for (let i = balls.length - 1; i >= 0; i--) {
-    const b = balls[i];
-    b.v.y -= G * dt;
-    b.m.position.addScaledVector(b.v, dt);
-    const p = b.m.position;
-    let dead = false;
-    const mine = b.owner === "player";
+    const b = balls[i], p = b.m.position, mine = b.owner === "player";
     const targets = mine ? [...npcs, ...remotes.values()] : [player];
-    for (const c of targets) {
-      if (Math.hypot(p.x - c.pos.x, p.z - c.pos.z) < 0.7 && p.y > 0.1 && p.y < 2.3) {
-        hitPenguin(c.obj); dead = true; puff(p, 10); sfx.hit();
-        if (c === player) {
-          got++; hudGot.textContent = got;
-          if (net && typeof b.owner === "string" && b.owner.startsWith("remote:")) net.send({ t: "hit", by: Number(b.owner.slice(7)) });
-        } else if (npcs.includes(c)) { hits++; hudHits.textContent = hits; store.set("xmas-hits", Math.max(store.get("xmas-hits", 0), hits)); }
-        break; // 다른 유저를 맞힌 점수는 맞은 쪽이 서버에 신고해 집계됩니다
+    // 프레임이 느려도 맞는 순간을 건너뛰지 않도록 작은 간격(1/120초 이하)으로 쪼개서 계산 (기기별 프레임 차이로 결과가 달라지지 않게 함)
+    const n = Math.max(1, Math.ceil(dt * 120)), h = dt / n; let dead = false;
+    for (let k = 0; k < n && !dead; k++) {
+      b.v.y -= G * h;
+      p.addScaledVector(b.v, h);
+      for (const c of targets) {
+        if (Math.hypot(p.x - c.pos.x, p.z - c.pos.z) < 0.7 && p.y > 0.1 && p.y < 2.3) {
+          hitPenguin(c.obj); dead = true; puff(p, 10); sfx.hit();
+          if (c === player) {
+            got++; hudGot.textContent = got;
+            if (net && typeof b.owner === "string" && b.owner.startsWith("remote:")) net.send({ t: "hit", by: Number(b.owner.slice(7)) });
+          } else if (npcs.includes(c)) { hits++; hudHits.textContent = hits; store.set("xmas-hits", Math.max(store.get("xmas-hits", 0), hits)); }
+          break; // 다른 유저를 맞힌 점수는 맞은 쪽이 서버에 신고해 집계됩니다
+        }
       }
+      if (!dead && p.y <= 0.2) {
+        dead = true; puff(p, 6); stamp(splats, p.x, p.z, Math.random() * 6, 0.6 + Math.random() * 0.5);
+        if (Math.hypot(p.x - player.pos.x, p.z - player.pos.z) < 18) sfx.splat();
+      }
+      if (!dead && obstacles.some(o => Math.hypot(p.x - o.x, p.z - o.z) < o.r && p.y < 3)) { dead = true; puff(p, 6); }
     }
-    if (!dead && p.y <= 0.2) {
-      dead = true; puff(p, 6); stamp(splats, p.x, p.z, Math.random() * 6, 0.6 + Math.random() * 0.5);
-      if (Math.hypot(p.x - player.pos.x, p.z - player.pos.z) < 18) sfx.splat();
-    }
-    if (!dead && obstacles.some(o => Math.hypot(p.x - o.x, p.z - o.z) < o.r && p.y < 3)) { dead = true; puff(p, 6); }
     if (dead) { scene.remove(b.m); balls.splice(i, 1); }
   }
   for (let i = puffs.length - 1; i >= 0; i--) {
@@ -493,7 +494,7 @@ function updateCamera() {
 let last = performance.now();
 function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000), t = now / 1000; last = now;
-  setViewYaw(yaw); // 보는 각도에 맞는 펭귄 그림을 고르기 위해 카메라 방향을 알려 줌
+  setViewYaw(yaw, pitch); // 보는 각도에 맞는 펭귄 그림을 고르고, 내려다보는 각도만큼 그림판을 기울이기 위해 카메라 방향을 알려 줌
   if (started) { updatePlayer(dt, t); updateNpcs(dt, t); updateBalls(dt); updateRemotes(dt); netTick(dt); }
   else { yaw += dt * 0.15; animatePenguin(player.obj, { moving: false, dt, facing: t }); }
   updateSnow(dt);
