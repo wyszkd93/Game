@@ -260,6 +260,8 @@ function retract(msg) { fs.st = "idle"; bobber.visible = line.visible = false; $
 const BITE_WINDOW = 1.1; // 입질 후 챔질할 수 있는 시간(초)
 let biteFrozen = false;  // 테스트용: 입질 시간을 멈춤
 /** 입질 효과(화면): 찌 위 "!" 말풍선과 남은 시간 링, 가장자리 번쩍임 */
+// 진동: 지원 기기(주로 안드로이드)에서만 동작. 소리 끄기(🔇)를 누르면 진동도 꺼짐. iOS Safari는 미지원.
+function buzz(pattern) { try { if (!muted && navigator.vibrate) navigator.vibrate(pattern); } catch (e) {} }
 function showBiteUi() { $("biteflash").classList.remove("hidden"); $("bite").classList.remove("hidden"); fs.rippleT = 0; placeBite(); }
 function hideBiteUi() { $("biteflash").classList.add("hidden"); $("bite").classList.add("hidden"); bobber.scale.setScalar(1); }
 function placeBite() { // 찌의 화면 위치 위에 말풍선을 두고, 화면 밖이면 가장자리 안쪽으로 붙임
@@ -270,7 +272,7 @@ function placeBite() { // 찌의 화면 위치 위에 말풍선을 두고, 화�
 }
 function bite() {
   fs.st = "bite"; fs.window = BITE_WINDOW; fs.fish = pickFish(); new Image().src = fs.fish.img; // 결과 카드 그림을 미리 받아 둠
-  sfx.bite(); ripple(bobber.position); setHint("지금!"); showBiteUi(); // 알림 문구 대신 찌 위 "!" 말풍선을 보여줌
+  sfx.bite(); buzz([60, 40, 90]); ripple(bobber.position); setHint("지금!"); showBiteUi(); // 알림 문구 대신 찌 위 "!" 말풍선을 보여줌
 }
 // 낚는 동안에는 어떤 물고기인지 알려 주지 않도록 모든 물고기를 같은 그림자 모양으로 보여줌
 const FISH_SHADOW = "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 48"><path d="M4 24C14 8 36 6 46 18L60 8v32L46 30C36 42 14 40 4 24z" fill="#10204a" fill-opacity=".85"/><circle cx="16" cy="21" r="2.4" fill="#fff"/></svg>');
